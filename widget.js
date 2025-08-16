@@ -53,7 +53,7 @@
   const el = document.getElementById('wilya-hero-widget');
   if (!el) return;
 
-  // state (simple)
+  // state
   let jobs = JSON.parse(JSON.stringify(JOBS));
   let workers = JSON.parse(JSON.stringify(WORKERS));
   let selectedId = jobs[0]?.id;
@@ -185,4 +185,3 @@
 
   render();
 })();
-

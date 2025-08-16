@@ -1,4 +1,3 @@
-
 (function () {
   const css = `
     .wly-hero{font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;padding:24px;border-radius:24px;background:linear-gradient(180deg,#0b1020 0%,#0f172a 100%);color:#e5e7eb;box-shadow:0 20px 40px rgba(0,0,0,.35)}
@@ -186,4 +185,4 @@
 
   render();
 })();
-</script>
+

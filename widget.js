@@ -1,39 +1,39 @@
 (function () {
-  const css = `
-    .wly-hero{font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;padding:24px;border-radius:24px;background:linear-gradient(180deg,#0b1020 0%,#0f172a 100%);color:#e5e7eb;box-shadow:0 20px 40px rgba(0,0,0,.35)}
-    .wly-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:20px}
-    .wly-title{font-size:28px;font-weight:800;margin:0;color:#fff}
-    .wly-sub{font-size:16px;opacity:.9;margin-top:8px}
-    .wly-kpis{display:flex;gap:12px}
-    .wly-kpi{background:#0b1220;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:10px 12px;min-width:100px;text-align:center}
-    .wly-kv{font-size:18px;font-weight:800;color:#fff}
-    .wly-kl{font-size:11px;color:#9ca3af}
-    .wly-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
-    @media (max-width:980px){.wly-grid{grid-template-columns:1fr}}
-    .wly-card{background:#0b1220;border:1px solid rgba(255,255,255,.06);border-radius:16px;overflow:hidden}
-    .wly-ch{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.06)}
-    .wly-ch h2{margin:0;font-size:16px;font-weight:700;color:#fff}
-    .wly-hint{color:#9ca3af;font-size:12px}
-    .wly-list{padding:8px;max-height:380px;overflow:auto}
-    .wly-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border:1px solid rgba(255,255,255,.06);border-radius:12px;margin:8px;background:transparent}
-    .wly-row:hover{background:rgba(255,255,255,.03)}
-    .wly-row.wly-active{outline:2px solid #60a5fa;background:rgba(96,165,250,.08)}
-    .wly-rt{font-weight:700;color:#fff}
-    .wly-rs{color:#a1a1aa;font-size:12px;margin-top:2px;display:flex;gap:6px;flex-wrap:wrap}
-    .wly-right{display:flex;align-items:center;margin-left:auto;flex-wrap:wrap;gap:6px}
-    .wly-badge{padding:2px 8px;border-radius:999px;font-size:12px;white-space:nowrap}
-    .wly-b-neutral{background:#eef2ff;color:#3730a3}
-    .wly-b-green{background:#ecfdf5;color:#065f46}
-    .wly-b-amber{background:#fffbeb;color:#92400e}
-    .wly-b-red{background:#fef2f2;color:#991b1b}
-    .wly-b-blue{background:#eff6ff;color:#1e3a8a}
-    .wly-btn{border:1px solid rgba(255,255,255,.2);background:#2563eb;color:#fff;font-weight:700;padding:8px 12px;border-radius:12px;cursor:pointer}
-    .wly-btn:hover{filter:brightness(1.05)}
-    .wly-btn:disabled{background:#374151;cursor:not-allowed}
-    .wly-ghost{background:transparent;color:#e5e7eb;border:1px solid rgba(229,231,235,.2)}
-    .wly-lg{padding:12px 16px;font-size:14px}
-    .wly-cta{display:flex;gap:12px;justify-content:center;margin-top:18px}
-  `;
+const css = `
+  .wly-hero{font-family:inherit;padding:24px;border-radius:var(--radius);background:linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);color:var(--text);box-shadow:0 20px 40px rgba(0,0,0,.35)}
+  .wly-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:20px}
+  .wly-title{font-size:28px;font-weight:800;margin:0;color:var(--text)}
+  .wly-sub{font-size:16px;opacity:.9;margin-top:8px;color:var(--muted)}
+  .wly-kpis{display:flex;gap:12px}
+  .wly-kpi{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 12px;min-width:100px;text-align:center}
+  .wly-kv{font-size:18px;font-weight:800;color:var(--text)}
+  .wly-kl{font-size:11px;color:var(--muted)}
+  .wly-grid{display:grid;grid-template-columns: 1fr 1fr 1fr; gap:16px}
+  @media (max-width:980px){.wly-grid{grid-template-columns:1fr}}
+  .wly-card{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+  .wly-ch{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:14px 16px;border-bottom:1px solid var(--border)}
+  .wly-ch h2{margin:0;font-size:16px;font-weight:700;color:var(--text)}
+  .wly-hint{color:var(--muted);font-size:12px}
+  .wly-list{padding:8px;max-height:380px;overflow:auto}
+  .wly-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border:1px solid var(--border);border-radius:12px;margin:8px;background:transparent}
+  .wly-row:hover{background:rgba(255,255,255,.03)}
+  .wly-row.wly-active{outline:2px solid var(--accent);background:rgba(96,165,250,.08)}
+  .wly-rt{font-weight:700;color:var(--text)}
+  .wly-rs{color:var(--muted);font-size:12px;margin-top:2px;display:flex;gap:6px;flex-wrap:wrap}
+  .wly-right{display:flex;align-items:center;margin-left:auto;flex-wrap:wrap;gap:6px}
+  .wly-badge{padding:2px 8px;border-radius:999px;font-size:12px;white-space:nowrap}
+  .wly-b-neutral{background:#eef2ff;color:#3730a3}
+  .wly-b-green{background:#ecfdf5;color:#065f46}
+  .wly-b-amber{background:#fffbeb;color:#92400e}
+  .wly-b-red{background:#fef2f2;color:#991b1b}
+  .wly-b-blue{background:#eff6ff;color:#1e3a8a}
+  .wly-btn{border:1px solid var(--border);background:var(--primary);color:var(--primary-contrast);font-weight:700;padding:8px 12px;border-radius:12px;cursor:pointer}
+  .wly-btn:hover{filter:brightness(1.05)}
+  .wly-btn:disabled{background:#374151;cursor:not-allowed}
+  .wly-ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
+  .wly-lg{padding:12px 16px;font-size:14px}
+  .wly-cta{display:flex;gap:12px;justify-content:center;margin-top:18px}
+`;
   const style = document.createElement('style'); style.textContent = css; document.head.appendChild(style);
 
   const JOBS = [

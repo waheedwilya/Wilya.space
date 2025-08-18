@@ -1,12 +1,6 @@
-/* Wilya Sandbox — Staffing Planner v2 (no libs)
-   Tabs: Skills Matrix | Availability | Demand
-   Master data:
-   - Workcenters: Production, Warehouse
-   - Jobs: Production -> CNC Machine Operator, Packer
-           Warehouse  -> Forklift Driver, Material Handler
-   - 10 workers with editable skills + availability
-   - Demand per job (editable)
-   Live Assignments panel updates on any change.
+/* Wilya Sandbox — Staffing Planner v2 + Animation (Assign -> fly into slot)
+   Adds a small "Available Pool" and animates newly-assigned workers from
+   the pool chip to the target job slot using a simple FLIP-style transition.
 */
 (function () {
   // ---------- Styles ----------
@@ -44,6 +38,25 @@
     select{border-radius:8px;border:1px solid var(--border,rgba(255,255,255,.2));background:#0b1220;color:var(--text,#e5e7eb);padding:6px 8px}
     .chk{width:18px;height:18px}
     .legend{display:flex;gap:8px;flex-wrap:wrap;padding:0 12px 12px}
+
+    /* --- Chips (pool + slots) --- */
+    .chip{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:999px;background:#0ea5a5;color:#fff;font-weight:900;font-size:12px;box-shadow:0 6px 16px rgba(0,0,0,.25)}
+    .chip.dim{opacity:.4;filter:grayscale(.2)}
+    .pool{display:flex;flex-wrap:wrap;gap:8px;padding:12px}
+    .pool-label{color:var(--muted,#9ca3af);font-size:12px;margin:4px 12px 0}
+
+    /* Floating clone for fly-in animation */
+    .chip-fly{position:fixed;left:0;top:0;pointer-events:none;z-index:9999;will-change:transform,opacity;transition:transform .45s cubic-bezier(.22,1,.36,1),opacity .45s}
+    @media (prefers-reduced-motion: reduce){
+      .chip-fly{transition:none}
+    }
+
+    /* Brief highlight on landing */
+    .land-highlight{box-shadow:0 0 0 0 rgba(96,165,250,.8);animation:land 600ms ease-out}
+    @keyframes land{
+      0%{box-shadow:0 0 0 0 rgba(96,165,250,.8)}
+      100%{box-shadow:0 0 0 8px rgba(96,165,250,0)}
+    }
   `;
   const style = document.createElement('style'); style.textContent = css; document.head.appendChild(style);
 
@@ -60,7 +73,6 @@
   ];
   const availabilityOptions = ['Available','Vacation','Training'];
 
-  // 10 workers
   const workers = [
     'Alex Kim','Priya Shah','Diego Rivera','Maya Singh','Ben Carter',
     'Liam Patel','Noah Chen','Sara Lopez','Ivy Brooks','Omar Ali'
@@ -69,8 +81,7 @@
     availability: 'Available'
   }));
 
-  // Default skills matrix (eligible=true/false per worker per job)
-  // Seed some variety; you can edit via UI
+  // Default skills matrix
   const skills = {};
   workers.forEach(w => { skills[w.id] = {
     J_CNC:  ['W1','W3','W6','W8'].includes(w.id),
@@ -82,25 +93,27 @@
   // Default demand per job
   const demand = { J_CNC: 2, J_PACK: 2, J_FORK: 1, J_MH: 1 };
 
-  // ---------- State helpers ----------
-  const state = { workers: JSON.parse(JSON.stringify(workers)), skills: JSON.parse(JSON.stringify(skills)), demand: {...demand} };
+  // ---------- State & helpers ----------
+  const state = {
+    workers: JSON.parse(JSON.stringify(workers)),
+    skills: JSON.parse(JSON.stringify(skills)),
+    demand: { ...demand },
+    prevAssigned: {} // remember prior assignments to detect newly added
+  };
 
   function byId(arr, id){ return arr.find(x=>x.id===id); }
+  const initials = (name) => name.split(' ').map(s=>s[0]).join('').toUpperCase();
 
-  // Compute greedy assignment:
-  // - consider only workers with availability 'Available'
-  // - for each job, pick eligible workers not yet assigned
-  // - preference to workers who qualify for FEWER jobs (to preserve flexible talent)
+  // Compute greedy assignment
   function computeAssignments() {
     const availableWorkers = state.workers.filter(w => w.availability === 'Available');
     const canDoCount = Object.fromEntries(availableWorkers.map(w => {
       const count = jobs.reduce((acc, j) => acc + (state.skills[w.id][j.id] ? 1 : 0), 0);
       return [w.id, count];
     }));
-    const assigned = {}; // jobId -> array of workerIds
+    const assigned = {};
     const used = new Set();
 
-    // Sort jobs by demand desc, then by number of eligible workers asc (harder jobs first)
     const jobsSorted = [...jobs].sort((a,b)=>{
       const ea = availableWorkers.filter(w => state.skills[w.id][a.id]).length;
       const eb = availableWorkers.filter(w => state.skills[w.id][b.id]).length;
@@ -111,7 +124,7 @@
       const need = Math.max(0, Number(state.demand[job.id] || 0));
       const pool = availableWorkers
         .filter(w => !used.has(w.id) && state.skills[w.id][job.id])
-        .sort((a,b) => (canDoCount[a.id]||0) - (canDoCount[b.id]||0)); // fewest options first
+        .sort((a,b) => (canDoCount[a.id]||0) - (canDoCount[b.id]||0));
       assigned[job.id] = [];
       for (let i=0; i<need && i<pool.length; i++){
         const w = pool[i];
@@ -124,6 +137,40 @@
     return { assigned, filled, needed, unfilled: Math.max(0, needed - filled) };
   }
 
+  // ---------- Animation helpers ----------
+  function rect(el){ return el.getBoundingClientRect(); }
+
+  function flyFromTo(srcEl, dstEl) {
+    if (!srcEl || !dstEl) return;
+    // Respect reduced motion
+    const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced) { dstEl.classList.add('land-highlight'); setTimeout(()=>dstEl.classList.remove('land-highlight'), 600); return; }
+
+    const s = rect(srcEl);
+    const d = rect(dstEl);
+
+    const clone = srcEl.cloneNode(true);
+    clone.classList.add('chip-fly');
+    clone.style.transform = `translate(${s.left}px, ${s.top}px)`;
+    clone.style.opacity = '1';
+    document.body.appendChild(clone);
+
+    // Force reflow, then animate to destination
+    void clone.offsetWidth;
+    const dx = d.left - s.left;
+    const dy = d.top - s.top;
+    clone.style.transform = `translate(${s.left + dx}px, ${s.top + dy}px)`;
+    clone.style.opacity = '0.2';
+
+    const cleanup = () => {
+      clone.remove();
+      dstEl.classList.add('land-highlight');
+      setTimeout(()=>dstEl.classList.remove('land-highlight'), 600);
+    };
+    clone.addEventListener('transitionend', cleanup, { once:true });
+    setTimeout(cleanup, 550); // safety
+  }
+
   // ---------- Rendering ----------
   const root = document.getElementById('wilya-hero-widget');
   if (!root) return;
@@ -133,6 +180,15 @@
   function render() {
     const { assigned, filled, needed, unfilled } = computeAssignments();
     const coverage = needed === 0 ? 100 : Math.round((filled/needed)*100);
+
+    // Figure out newly-added assignments compared to last render
+    const newPairs = []; // [{wid, jid}]
+    for (const j of jobs) {
+      const prev = new Set(state.prevAssigned[j.id] || []);
+      for (const wid of (assigned[j.id] || [])) {
+        if (!prev.has(wid)) newPairs.push({ wid, jid: j.id });
+      }
+    }
 
     root.innerHTML = `
       <div class="wly-hero">
@@ -159,19 +215,30 @@
               <h2>Auto-Assignment</h2>
               <span class="badge">Greedy, skills- & availability-aware</span>
             </div>
+
+            <!-- Available Pool (source for fly-in) -->
+            <div class="pool-label">Available pool</div>
+            <div class="pool">
+              ${state.workers.map(w=>{
+                const isAvail = w.availability === 'Available';
+                return `<div class="chip ${isAvail?'':'dim'}" id="pool-${w.id}" title="${w.name}">${initials(w.name)}</div>`;
+              }).join('')}
+            </div>
+
             <div class="kpis">
               <div class="kpi"><div class="v">${coverage}%</div><div class="l">Coverage</div></div>
               <div class="kpi"><div class="v">${filled}/${needed}</div><div class="l">Positions Filled</div></div>
               <div class="kpi"><div class="v">${unfilled}</div><div class="l">Unfilled</div></div>
             </div>
+
             <div class="pc">
               ${workcenters.map(wc => `
                 <div class="group">${wc.name}</div>
                 ${jobs.filter(j=>j.wc===wc.id).map(j => {
-                  const assignees = assigned[j.id].map(wid => byId(state.workers,wid).name);
+                  const assignees = (assigned[j.id] || []).map(wid => byId(state.workers,wid).name);
                   const need = Number(state.demand[j.id]||0);
                   let pillClass='ok', pillText='OK';
-                  if (assignees.length < need) { pillClass='warn'; pillText=`Need ${need-assignees.length} more`; }
+                  if (assignees.length < need) { pillClass='warn'; pillText=\`Need \${need-assignees.length} more\`; }
                   if (need===0) { pillClass='ok'; pillText='No demand'; }
                   if (assignees.length > need) { pillClass='err'; pillText='Overfilled'; }
                   return `
@@ -181,7 +248,14 @@
                         <div style="font-size:12px;color:var(--muted,#9ca3af)">Demand: ${need} • Assigned: ${assignees.length}</div>
                       </div>
                       <div class="controls">
-                        ${assignees.length ? assignees.map(n=>`<span class="pill ok">${n}</span>`).join('') : `<span class="pill warn">—</span>`}
+                        ${
+                          assignees.length
+                            ? assignees.map(n=>{
+                                const wid = state.workers.find(x=>x.name===n).id;
+                                return `<span class="chip" id="slot-${j.id}-${wid}" title="${n}">${initials(n)}</span>`;
+                              }).join('')
+                            : `<span class="pill warn">—</span>`
+                        }
                         <span class="pill ${pillClass}">${pillText}</span>
                       </div>
                     </div>
@@ -189,6 +263,7 @@
                 }).join('')}
               `).join('')}
             </div>
+
             <div class="legend">
               <span class="pill ok">OK</span>
               <span class="pill warn">Under</span>
@@ -200,12 +275,12 @@
       </div>
     `;
 
-    // Wire tab switching
+    // Tab switching
     root.querySelectorAll('[data-tab]').forEach(b=>{
       b.onclick = () => { activeTab = b.getAttribute('data-tab'); render(); };
     });
 
-    // Wire inputs inside the active tab
+    // Inputs
     if (activeTab === 'skills') {
       root.querySelectorAll('[data-skill]').forEach(chk=>{
         chk.onchange = () => {
@@ -232,6 +307,18 @@
         };
       });
     }
+
+    // ---- Run fly-in animations for new assignments ----
+    // After DOM is ready, pair each new (wid,jid): animate pool chip -> slot chip
+    newPairs.forEach(({wid, jid})=>{
+      const src = document.getElementById(`pool-${wid}`);
+      const dst = document.getElementById(`slot-${jid}-${wid}`);
+      // Slight delay so layout settles
+      setTimeout(()=> flyFromTo(src, dst), 30);
+    });
+
+    // Save current assignment snapshot for next diff
+    state.prevAssigned = Object.fromEntries(jobs.map(j => [j.id, (assigned[j.id]||[]).slice()]));
   }
 
   // ---------- Tab renderers ----------
@@ -278,7 +365,7 @@
                 <td>${w.name}</td>
                 <td>
                   <select data-avail data-wid="${w.id}">
-                    ${availabilityOptions.map(a=>`<option ${w.availability===a?'selected':''}>${a}</option>`).join('')}
+                    ${['Available','Vacation','Training'].map(a=>`<option ${w.availability===a?'selected':''}>${a}</option>`).join('')}
                   </select>
                 </td>
               </tr>

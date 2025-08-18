@@ -1,27 +1,73 @@
+<!DOCTYPE html>
 <html lang="en">
-
 <head>
-
   <meta charset="UTF-8" />
-
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-  <title>Wilya Sandbox</title>
-
+  <title>Wilya — Sandbox</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2232%22 fill=%22%2360a5fa%22/></svg>">
 </head>
-
 <body>
+  <!-- Header -->
+  <header class="site-header">
+    <div class="container">
+      <div class="nav">
+        <div class="brand">
+          <span class="dot"></span>
+          <span>Wilya</span>
+        </div>
+        <nav>
+          <a href="#">Product</a>
+          <a href="#">Solutions</a>
+          <a href="#">Resources</a>
+          <a href="#" class="btn ghost" style="padding:8px 12px;">Contact</a>
+        </nav>
+      </div>
+    </div>
+  </header>
 
-  <h1 style="text-align:center;">Wilya Sandbox Hero</h1>
+  <!-- Hero -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-grid">
+        <!-- Left: copy -->
+        <div class="hero-copy">
+          <h1>Assign the right person to the right job — in seconds.</h1>
+          <p>Give frontline supervisors a simple way to match open jobs with available, skilled associates. Reduce line downtime, boost coverage, and keep quality high.</p>
+          <div class="badges">
+            <span class="badge">Skills-based matching</span>
+            <span class="badge">Shift-aware availability</span>
+            <span class="badge">Instant coverage KPIs</span>
+          </div>
+          <div class="cta-row" style="margin-top:14px;">
+            <a href="#" class="btn">Book a demo</a>
+            <a href="#" class="btn ghost">See how it works</a>
+          </div>
+        </div>
 
-  <div id="wilya-hero-widget"></div>
+        <!-- Right: widget framed in a card -->
+        <div class="hero-card">
+          <div id="wilya-hero-widget"></div>
+        </div>
+      </div>
+    </div>
+  </section>
 
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="row">
+        <div>© <span id="y"></span> Wilya</div>
+        <div>
+          <a href="#">Privacy</a> · <a href="#">Terms</a>
+        </div>
+      </div>
+    </div>
+  </footer>
 
-
-  <!-- Paste the widget script here -->
-
-  <script src="widget.js"></script>
-
+  <script>
+    document.getElementById('y').textContent = new Date().getFullYear();
+  </script>
+  <script src="widget.js" defer></script>
 </body>
-
 </html>

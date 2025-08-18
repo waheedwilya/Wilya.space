@@ -1,187 +1,313 @@
+/* Wilya Sandbox — Staffing Planner v2 (no libs)
+   Tabs: Skills Matrix | Availability | Demand
+   Master data:
+   - Workcenters: Production, Warehouse
+   - Jobs: Production -> CNC Machine Operator, Packer
+           Warehouse  -> Forklift Driver, Material Handler
+   - 10 workers with editable skills + availability
+   - Demand per job (editable)
+   Live Assignments panel updates on any change.
+*/
 (function () {
-const css = `
-  .wly-hero{font-family:inherit;padding:24px;border-radius:var(--radius);background:linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);color:var(--text);box-shadow:0 20px 40px rgba(0,0,0,.35)}
-  .wly-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:20px}
-  .wly-title{font-size:28px;font-weight:800;margin:0;color:var(--text)}
-  .wly-sub{font-size:16px;opacity:.9;margin-top:8px;color:var(--muted)}
-  .wly-kpis{display:flex;gap:12px}
-  .wly-kpi{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 12px;min-width:100px;text-align:center}
-  .wly-kv{font-size:18px;font-weight:800;color:var(--text)}
-  .wly-kl{font-size:11px;color:var(--muted)}
-  .wly-grid{display:grid;grid-template-columns: 1fr 1fr 1fr; gap:16px}
-  @media (max-width:980px){.wly-grid{grid-template-columns:1fr}}
-  .wly-card{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden}
-  .wly-ch{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:14px 16px;border-bottom:1px solid var(--border)}
-  .wly-ch h2{margin:0;font-size:16px;font-weight:700;color:var(--text)}
-  .wly-hint{color:var(--muted);font-size:12px}
-  .wly-list{padding:8px;max-height:380px;overflow:auto}
-  .wly-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border:1px solid var(--border);border-radius:12px;margin:8px;background:transparent}
-  .wly-row:hover{background:rgba(255,255,255,.03)}
-  .wly-row.wly-active{outline:2px solid var(--accent);background:rgba(96,165,250,.08)}
-  .wly-rt{font-weight:700;color:var(--text)}
-  .wly-rs{color:var(--muted);font-size:12px;margin-top:2px;display:flex;gap:6px;flex-wrap:wrap}
-  .wly-right{display:flex;align-items:center;margin-left:auto;flex-wrap:wrap;gap:6px}
-  .wly-badge{padding:2px 8px;border-radius:999px;font-size:12px;white-space:nowrap}
-  .wly-b-neutral{background:#eef2ff;color:#3730a3}
-  .wly-b-green{background:#ecfdf5;color:#065f46}
-  .wly-b-amber{background:#fffbeb;color:#92400e}
-  .wly-b-red{background:#fef2f2;color:#991b1b}
-  .wly-b-blue{background:#eff6ff;color:#1e3a8a}
-  .wly-btn{border:1px solid var(--border);background:var(--primary);color:var(--primary-contrast);font-weight:700;padding:8px 12px;border-radius:12px;cursor:pointer}
-  .wly-btn:hover{filter:brightness(1.05)}
-  .wly-btn:disabled{background:#374151;cursor:not-allowed}
-  .wly-ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
-  .wly-lg{padding:12px 16px;font-size:14px}
-  .wly-cta{display:flex;gap:12px;justify-content:center;margin-top:18px}
-`;
+  // ---------- Styles ----------
+  const css = `
+    .wly-hero{font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;padding:24px;border-radius:18px;background:linear-gradient(180deg,var(--bg,#0b1020) 0%,var(--bg-2,#0f172a) 100%);color:var(--text,#e5e7eb);box-shadow:0 20px 40px rgba(0,0,0,.35)}
+    .wly-grid{display:grid;grid-template-columns: 1.2fr .9fr;gap:16px}
+    @media (max-width:980px){.wly-grid{grid-template-columns:1fr}}
+    .pane{background:var(--card,#0b1220);border:1px solid var(--border,rgba(255,255,255,.08));border-radius:14px;overflow:hidden}
+    .ph{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border,rgba(255,255,255,.08))}
+    .ph h2{margin:0;font-size:16px;font-weight:800;color:var(--text,#fff)}
+    .tabs{display:flex;gap:6px;flex-wrap:wrap}
+    .tab{border:1px solid var(--border,rgba(255,255,255,.15));background:transparent;color:var(--text,#e5e7eb);padding:6px 10px;border-radius:10px;cursor:pointer;font-weight:700}
+    .tab.active{background:var(--accent,#60a5fa);color:#08142c;border-color:transparent}
+    .pc{padding:10px 12px}
+    table{width:100%;border-collapse:separate;border-spacing:0 8px}
+    th, td{font-size:13px}
+    th{color:var(--muted,#9ca3af);text-align:left;padding:6px 8px}
+    td{padding:6px 8px;background:rgba(255,255,255,.03);border:1px solid var(--border,rgba(255,255,255,.08))}
+    td:first-child{border-top-left-radius:10px;border-bottom-left-radius:10px}
+    td:last-child{border-top-right-radius:10px;border-bottom-right-radius:10px}
+    .group{margin:8px 0 2px;color:var(--muted,#9ca3af);font-weight:700}
+    .badge{padding:2px 8px;border-radius:999px;font-size:12px;background:#0d1a34;color:#c7d2fe;border:1px solid var(--border,rgba(255,255,255,.08))}
+    .kpis{display:flex;gap:10px;padding:10px 12px}
+    .kpi{flex:1;background:rgba(255,255,255,.03);border:1px solid var(--border,rgba(255,255,255,.08));border-radius:12px;padding:10px;text-align:center}
+    .kpi .v{font-weight:900;color:var(--text,#fff)}
+    .kpi .l{font-size:11px;color:var(--muted,#9ca3af)}
+    .slot{display:flex;align-items:center;justify-content:space-between;padding:10px;border:1px solid var(--border,rgba(255,255,255,.08));border-radius:10px;margin:8px 0;background:rgba(255,255,255,.02)}
+    .slot .title{font-weight:800}
+    .pill{font-size:12px;padding:2px 8px;border-radius:999px}
+    .pill.ok{background:#ecfdf5;color:#065f46}
+    .pill.warn{background:#fffbeb;color:#92400e}
+    .pill.err{background:#fef2f2;color:#991b1b}
+    .controls{display:flex;gap:6px;flex-wrap:wrap}
+    input[type="number"]{width:72px;border-radius:8px;border:1px solid var(--border,rgba(255,255,255,.2));background:#0b1220;color:var(--text,#e5e7eb);padding:6px 8px}
+    select{border-radius:8px;border:1px solid var(--border,rgba(255,255,255,.2));background:#0b1220;color:var(--text,#e5e7eb);padding:6px 8px}
+    .chk{width:18px;height:18px}
+    .legend{display:flex;gap:8px;flex-wrap:wrap;padding:0 12px 12px}
+  `;
   const style = document.createElement('style'); style.textContent = css; document.head.appendChild(style);
 
-  const JOBS = [
-    { id:"J1", title:"Packaging Line A", req:["Packaging","Safety"], shift:"Morning", loc:"Plant 5" },
-    { id:"J2", title:"Extrusion Machine 2", req:["Extrusion","Setup","Safety"], shift:"Afternoon", loc:"Plant 5" },
-    { id:"J3", title:"QC Inspection", req:["QC","Documentation"], shift:"Night", loc:"Plant 4" },
-    { id:"J4", title:"Palletizing", req:["Forklift","Packaging"], shift:"Morning", loc:"Warehouse" },
+  // ---------- Master data ----------
+  const workcenters = [
+    { id: 'WC_PROD', name: 'Production' },
+    { id: 'WC_WH',   name: 'Warehouse'  },
   ];
-  const WORKERS = [
-    { id:"W1", name:"Alex Kim", skills:["Packaging","Safety","Palletizing"], shifts:["Morning","Afternoon"], jobs:[] },
-    { id:"W2", name:"Priya Shah", skills:["QC","Documentation","Safety"], shifts:["Night"], jobs:[] },
-    { id:"W3", name:"Diego Rivera", skills:["Extrusion","Setup","Maintenance"], shifts:["Afternoon"], jobs:[] },
-    { id:"W4", name:"Maya Singh", skills:["Forklift","Packaging","Safety"], shifts:["Morning","Night"], jobs:[] },
-    { id:"W5", name:"Ben Carter", skills:["Packaging"], shifts:["Morning"], jobs:[] },
+  const jobs = [
+    { id:'J_CNC',  title:'CNC Machine Operator', wc:'WC_PROD' },
+    { id:'J_PACK', title:'Packer',               wc:'WC_PROD' },
+    { id:'J_FORK', title:'Forklift Driver',      wc:'WC_WH'   },
+    { id:'J_MH',   title:'Material Handler',     wc:'WC_WH'   },
   ];
+  const availabilityOptions = ['Available','Vacation','Training'];
 
-  const el = document.getElementById('wilya-hero-widget');
-  if (!el) return;
+  // 10 workers
+  const workers = [
+    'Alex Kim','Priya Shah','Diego Rivera','Maya Singh','Ben Carter',
+    'Liam Patel','Noah Chen','Sara Lopez','Ivy Brooks','Omar Ali'
+  ].map((name, i) => ({
+    id: `W${i+1}`, name,
+    availability: 'Available'
+  }));
 
-  // state
-  let jobs = JSON.parse(JSON.stringify(JOBS));
-  let workers = JSON.parse(JSON.stringify(WORKERS));
-  let selectedId = jobs[0]?.id;
+  // Default skills matrix (eligible=true/false per worker per job)
+  // Seed some variety; you can edit via UI
+  const skills = {};
+  workers.forEach(w => { skills[w.id] = {
+    J_CNC:  ['W1','W3','W6','W8'].includes(w.id),
+    J_PACK: ['W1','W5','W7','W9','W10'].includes(w.id),
+    J_FORK: ['W4','W6','W7','W9'].includes(w.id),
+    J_MH:   ['W2','W4','W5','W8','W10'].includes(w.id),
+  };});
 
-  function score(job, w) {
-    const skillMatches = job.req.filter(s => w.skills.includes(s)).length;
-    const skillScore = Math.round((skillMatches / job.req.length) * 100);
-    const availScore = w.shifts.includes(job.shift) ? 100 : 0;
-    const total = Math.round(skillScore * 0.7 + availScore * 0.3);
-    return { skillScore, availScore, total };
+  // Default demand per job
+  const demand = { J_CNC: 2, J_PACK: 2, J_FORK: 1, J_MH: 1 };
+
+  // ---------- State helpers ----------
+  const state = { workers: JSON.parse(JSON.stringify(workers)), skills: JSON.parse(JSON.stringify(skills)), demand: {...demand} };
+
+  function byId(arr, id){ return arr.find(x=>x.id===id); }
+
+  // Compute greedy assignment:
+  // - consider only workers with availability 'Available'
+  // - for each job, pick eligible workers not yet assigned
+  // - preference to workers who qualify for FEWER jobs (to preserve flexible talent)
+  function computeAssignments() {
+    const availableWorkers = state.workers.filter(w => w.availability === 'Available');
+    const canDoCount = Object.fromEntries(availableWorkers.map(w => {
+      const count = jobs.reduce((acc, j) => acc + (state.skills[w.id][j.id] ? 1 : 0), 0);
+      return [w.id, count];
+    }));
+    const assigned = {}; // jobId -> array of workerIds
+    const used = new Set();
+
+    // Sort jobs by demand desc, then by number of eligible workers asc (harder jobs first)
+    const jobsSorted = [...jobs].sort((a,b)=>{
+      const ea = availableWorkers.filter(w => state.skills[w.id][a.id]).length;
+      const eb = availableWorkers.filter(w => state.skills[w.id][b.id]).length;
+      return (state.demand[b.id]||0) - (state.demand[a.id]||0) || ea - eb;
+    });
+
+    for (const job of jobsSorted) {
+      const need = Math.max(0, Number(state.demand[job.id] || 0));
+      const pool = availableWorkers
+        .filter(w => !used.has(w.id) && state.skills[w.id][job.id])
+        .sort((a,b) => (canDoCount[a.id]||0) - (canDoCount[b.id]||0)); // fewest options first
+      assigned[job.id] = [];
+      for (let i=0; i<need && i<pool.length; i++){
+        const w = pool[i];
+        assigned[job.id].push(w.id);
+        used.add(w.id);
+      }
+    }
+    const filled = Object.values(assigned).reduce((acc, arr)=> acc + arr.length, 0);
+    const needed = Object.values(state.demand).reduce((a,b)=>a+Number(b||0),0);
+    return { assigned, filled, needed, unfilled: Math.max(0, needed - filled) };
   }
-  const badge = (t, c="neutral") => `<span class="wly-badge wly-b-${c}">${t}</span>`;
 
-  function coverage() {
-    const total = jobs.length;
-    const filled = jobs.filter(j=>j.wid).length;
-    const pct = total===0?100:Math.round(filled/total*100);
-    return { total, filled, unfilled: total - filled, pct };
-  }
+  // ---------- Rendering ----------
+  const root = document.getElementById('wilya-hero-widget');
+  if (!root) return;
 
-  function assign(jobId, workerId) {
-    jobs = jobs.map(j => j.id===jobId ? {...j, wid: workerId} : j);
-    workers = workers.map(w => w.id===workerId ? {...w, jobs:[...(w.jobs||[]), jobId]} : w);
-    render();
-  }
-  function unassign(jobId) {
-    const job = jobs.find(j=>j.id===jobId); if(!job?.wid) return;
-    const wid = job.wid;
-    jobs = jobs.map(j => j.id===jobId ? {...j, wid: undefined} : j);
-    workers = workers.map(w => w.id===wid ? {...w, jobs:(w.jobs||[]).filter(id=>id!==jobId)} : w);
-    render();
-  }
+  let activeTab = 'skills'; // 'skills' | 'availability' | 'demand'
 
   function render() {
-    const cov = coverage();
-    const job = jobs.find(j=>j.id===selectedId);
-    const ranked = job ? workers
-      .map(w => ({ w, s: score(job, w) }))
-      .sort((a,b)=>b.s.total - a.s.total) : [];
+    const { assigned, filled, needed, unfilled } = computeAssignments();
+    const coverage = needed === 0 ? 100 : Math.round((filled/needed)*100);
 
-    el.innerHTML = `
+    root.innerHTML = `
       <div class="wly-hero">
-        <div class="wly-head">
-          <div>
-            <h1 class="wly-title">Right person. Right job. Right now.</h1>
-            <p class="wly-sub">Match open jobs to available, skilled associates in seconds.</p>
-          </div>
-          <div class="wly-kpis">
-            <div class="wly-kpi"><div class="wly-kv">${cov.pct}%</div><div class="wly-kl">Coverage</div></div>
-            <div class="wly-kpi"><div class="wly-kv">${cov.filled}/${cov.total}</div><div class="wly-kl">Jobs Filled</div></div>
-            <div class="wly-kpi"><div class="wly-kv">${cov.unfilled}</div><div class="wly-kl">Unfilled</div></div>
-          </div>
-        </div>
-
         <div class="wly-grid">
-          <div class="wly-card">
-            <div class="wly-ch"><h2>Open Jobs</h2><div class="wly-hint">Select a job to see best matches</div></div>
-            <div class="wly-list">
-              ${jobs.map(j => `
-                <button class="wly-row ${j.id===selectedId?'wly-active':''}" data-type="select" data-id="${j.id}">
-                  <div>
-                    <div class="wly-rt">${j.title}</div>
-                    <div class="wly-rs">${j.loc} • ${j.shift} shift</div>
-                  </div>
-                  <div class="wly-right">
-                    ${j.req.map(s=>badge(s)).join('')}
-                    ${j.wid ? badge('Assigned','green') : badge('Open','amber')}
-                  </div>
-                </button>`).join('')}
+
+          <!-- Left: Config tabs -->
+          <div class="pane">
+            <div class="ph">
+              <h2>Plan for Today</h2>
+              <div class="tabs">
+                <button class="tab ${activeTab==='skills'?'active':''}" data-tab="skills">Skills Matrix</button>
+                <button class="tab ${activeTab==='availability'?'active':''}" data-tab="availability">Worker Availability</button>
+                <button class="tab ${activeTab==='demand'?'active':''}" data-tab="demand">Demand</button>
+              </div>
+            </div>
+            <div class="pc">
+              ${activeTab==='skills' ? renderSkills() : activeTab==='availability' ? renderAvailability() : renderDemand()}
             </div>
           </div>
 
-          <div class="wly-card">
-            <div class="wly-ch"><h2>Best Matches</h2>
-              <div class="wly-hint">${job ? `${job.title} • Needs ${job.req.join(', ')} • ${job.shift}` : 'No job selected'}</div>
+          <!-- Right: Assignments -->
+          <div class="pane">
+            <div class="ph">
+              <h2>Auto-Assignment</h2>
+              <span class="badge">Greedy, skills- & availability-aware</span>
             </div>
-            <div class="wly-list">
-              ${job ? ranked.map(({w,s})=>`
-                <div class="wly-row">
-                  <div>
-                    <div class="wly-rt">${w.name}</div>
-                    <div class="wly-rs">${w.skills.slice(0,6).map(x=>badge(x, job.req.includes(x)?'blue':'neutral')).join('')}</div>
-                  </div>
-                  <div class="wly-right">
-                    ${badge(`${s.total}% fit`, s.total>=80?'green':s.total>=50?'amber':'red')}
-                    ${badge(w.shifts.join('/'))}
-                    ${
-                      job.wid===w.id
-                        ? `<button class="wly-btn wly-ghost" data-type="unassign" data-id="${job.id}">Unassign</button>`
-                        : job.wid
-                          ? `<button class="wly-btn" disabled>Filled</button>`
-                          : `<button class="wly-btn" data-type="assign" data-jid="${job.id}" data-wid="${w.id}">Assign</button>`
-                    }
-                  </div>
-                </div>`).join('') : ''}
+            <div class="kpis">
+              <div class="kpi"><div class="v">${coverage}%</div><div class="l">Coverage</div></div>
+              <div class="kpi"><div class="v">${filled}/${needed}</div><div class="l">Positions Filled</div></div>
+              <div class="kpi"><div class="v">${unfilled}</div><div class="l">Unfilled</div></div>
+            </div>
+            <div class="pc">
+              ${workcenters.map(wc => `
+                <div class="group">${wc.name}</div>
+                ${jobs.filter(j=>j.wc===wc.id).map(j => {
+                  const assignees = assigned[j.id].map(wid => byId(state.workers,wid).name);
+                  const need = Number(state.demand[j.id]||0);
+                  let pillClass='ok', pillText='OK';
+                  if (assignees.length < need) { pillClass='warn'; pillText=`Need ${need-assignees.length} more`; }
+                  if (need===0) { pillClass='ok'; pillText='No demand'; }
+                  if (assignees.length > need) { pillClass='err'; pillText='Overfilled'; }
+                  return `
+                    <div class="slot">
+                      <div>
+                        <div class="title">${j.title}</div>
+                        <div style="font-size:12px;color:var(--muted,#9ca3af)">Demand: ${need} • Assigned: ${assignees.length}</div>
+                      </div>
+                      <div class="controls">
+                        ${assignees.length ? assignees.map(n=>`<span class="pill ok">${n}</span>`).join('') : `<span class="pill warn">—</span>`}
+                        <span class="pill ${pillClass}">${pillText}</span>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              `).join('')}
+            </div>
+            <div class="legend">
+              <span class="pill ok">OK</span>
+              <span class="pill warn">Under</span>
+              <span class="pill err">Over</span>
             </div>
           </div>
 
-          <div class="wly-card">
-            <div class="wly-ch"><h2>Roster</h2><div class="wly-hint">Who's available this shift?</div></div>
-            <div class="wly-list">
-              ${workers.map(w=>`
-                <div class="wly-row">
-                  <div><div class="wly-rt">${w.name}</div><div class="wly-rs">${w.shifts.join(' / ')}</div></div>
-                  <div class="wly-right">${(w.jobs||[]).length>0?badge('Assigned','green'):badge('Free','amber')}</div>
-                </div>`).join('')}
-            </div>
-          </div>
-        </div>
-
-        <div class="wly-cta">
-          <a href="/pages/contact-us.html" class="wly-btn wly-lg">Talk to Us</a>
-          <a href="/pages/resources.html" class="wly-btn wly-ghost wly-lg">Explore Resources</a>
         </div>
       </div>
     `;
 
-    // wire events
-    el.querySelectorAll('[data-type="select"]').forEach(btn=>{
-      btn.onclick = () => { selectedId = btn.getAttribute('data-id'); render(); };
+    // Wire tab switching
+    root.querySelectorAll('[data-tab]').forEach(b=>{
+      b.onclick = () => { activeTab = b.getAttribute('data-tab'); render(); };
     });
-    el.querySelectorAll('[data-type="assign"]').forEach(btn=>{
-      btn.onclick = () => assign(btn.getAttribute('data-jid'), btn.getAttribute('data-wid'));
-    });
-    el.querySelectorAll('[data-type="unassign"]').forEach(btn=>{
-      btn.onclick = () => unassign(btn.getAttribute('data-id'));
-    });
+
+    // Wire inputs inside the active tab
+    if (activeTab === 'skills') {
+      root.querySelectorAll('[data-skill]').forEach(chk=>{
+        chk.onchange = () => {
+          const wid = chk.getAttribute('data-wid');
+          const jid = chk.getAttribute('data-jid');
+          state.skills[wid][jid] = chk.checked;
+          render();
+        };
+      });
+    } else if (activeTab === 'availability') {
+      root.querySelectorAll('[data-avail]').forEach(sel=>{
+        sel.onchange = () => {
+          const wid = sel.getAttribute('data-wid');
+          byId(state.workers, wid).availability = sel.value;
+          render();
+        };
+      });
+    } else if (activeTab === 'demand') {
+      root.querySelectorAll('[data-demand]').forEach(inp=>{
+        inp.oninput = () => {
+          const jid = inp.getAttribute('data-jid');
+          state.demand[jid] = Math.max(0, Number(inp.value||0));
+          render();
+        };
+      });
+    }
   }
 
+  // ---------- Tab renderers ----------
+  function renderSkills(){
+    return `
+      ${workcenters.map(wc => `
+        <div class="group">${wc.name}</div>
+        <div style="overflow:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Worker</th>
+                ${jobs.filter(j=>j.wc===wc.id).map(j=>`<th>${j.title}</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              ${state.workers.map(w=>`
+                <tr>
+                  <td>${w.name}</td>
+                  ${jobs.filter(j=>j.wc===wc.id).map(j=>`
+                    <td style="text-align:center">
+                      <input type="checkbox" class="chk"
+                        ${state.skills[w.id][j.id] ? 'checked' : ''}
+                        data-skill data-wid="${w.id}" data-jid="${j.id}"/>
+                    </td>
+                  `).join('')}
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `).join('')}
+    `;
+  }
+
+  function renderAvailability(){
+    return `
+      <div style="overflow:auto">
+        <table>
+          <thead><tr><th>Worker</th><th>Availability</th></tr></thead>
+          <tbody>
+            ${state.workers.map(w=>`
+              <tr>
+                <td>${w.name}</td>
+                <td>
+                  <select data-avail data-wid="${w.id}">
+                    ${availabilityOptions.map(a=>`<option ${w.availability===a?'selected':''}>${a}</option>`).join('')}
+                  </select>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  function renderDemand(){
+    return `
+      ${workcenters.map(wc => `
+        <div class="group">${wc.name}</div>
+        ${jobs.filter(j=>j.wc===wc.id).map(j=>`
+          <div class="slot">
+            <div>
+              <div class="title">${j.title}</div>
+              <div style="font-size:12px;color:var(--muted,#9ca3af)">How many needed today?</div>
+            </div>
+            <div class="controls">
+              <input type="number" min="0" step="1" value="${state.demand[j.id]||0}" data-demand data-jid="${j.id}" />
+            </div>
+          </div>
+        `).join('')}
+      `).join('')}
+    `;
+  }
+
+  // Kick off
   render();
 })();

@@ -378,7 +378,40 @@
       return html;
     }
 
-    function renderAvailability(){
-      var html = '<div style="overflow:auto"><table><thead><tr><th>Worker</th><th>Availability</th></tr></thead><tbody>';
-      for (var i=0;i<state.workers.length;i++){
-        var w = state.workers
+
+      function renderAvailability(){
+        let html = '<div style="overflow:auto"><table><thead><tr><th>Worker</th><th>Availability</th></tr></thead><tbody>';
+        for (const w of state.workers){
+          html += '<tr><td>' + w.name + '</td><td><select data-avail data-wid="' + w.id + '">';
+          for (const opt of availabilityOptions){
+            const sel = (w.availability===opt) ? ' selected' : '';
+            html += '<option' + sel + '>' + opt + '</option>';
+          }
+          html += '</select></td></tr>';
+        }
+        html += '</tbody></table></div>';
+        return html;
+        }
+
+      function renderDemand(){
+        let html = '';
+        for (const wc of workcenters){
+          html += '<div class="group">' + wc.name + '</div>';
+          for (const j of jobs.filter(x=>x.wc===wc.id)){
+            html += '<div class="slot"><div><div class="title">' + j.title + '</div>' +
+                    '<div style="font-size:12px;color:var(--muted,#9ca3af)">How many needed today?</div></div>' +
+                    '<div class="controls"><input type="number" min="0" step="1" value="' + (state.demand[j.id]||0) +
+                    '" data-demand data-jid="' + j.id + '"/></div></div>';
+          }
+        }
+        return html;
+      }
+
+      // start
+      render();
+    } catch (e) {
+      console.error(e);
+      showError(e.message || String(e));
+    }
+  });
+})();

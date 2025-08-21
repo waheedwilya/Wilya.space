@@ -51,39 +51,56 @@
     };
 
     // ---------------- Assignment (Greedy) ----------------
-    function computeAssignments(){
-      var available = state.workers.filter(function(w){ return w.availability==='Available'; });
-      var canDoCount = {};
-      for (var i=0;i<available.length;i++){
-        var w = available[i], c=0;
-        for (var j=0;jobs.length;j++){ if (state.skills[w.id][jobs[j].id]) c++; }
-        canDoCount[w.id] = c;
-      }
-      var used = {};
-      var assigned = {};
-      var jobsSorted = jobs.slice().sort(function(a,b){
-        var ea=0, eb=0;
-        for (var k=0;k<available.length;k++){
-          var ww=available[k]; if (state.skills[ww.id][a.id]) ea++; if (state.skills[ww.id][b.id]) eb++;
-        }
-        var d=(state.demand[b.id]||0)-(state.demand[a.id]||0);
-        return d!==0 ? d : (ea-eb);
-      });
-      for (i=0;i<jobsSorted.length;i++){
-        var job = jobsSorted[i];
-        var need = Math.max(0, Number(state.demand[job.id]||0));
-        var pool = available.filter(function(w){ return !used[w.id] && state.skills[w.id][job.id]; })
-                            .sort(function(a,b){ return (canDoCount[a.id]||0)-(canDoCount[b.id]||0); });
-        assigned[job.id] = [];
-        for (var t=0; t<need && t<pool.length; t++){
-          var pick = pool[t]; assigned[job.id].push(pick.id); used[pick.id]=true;
-        }
-      }
-      var filled=0, needed=0;
-      for (var jid in assigned){ if (assigned.hasOwnProperty(jid)) filled += assigned[jid].length; }
-      for (jid in state.demand){ if (state.demand.hasOwnProperty(jid)) needed += Number(state.demand[jid]||0); }
-      return { assigned:assigned, filled:filled, needed:needed, unfilled:Math.max(0, needed-filled) };
+  function computeAssignments(){
+  var available = state.workers.filter(function(w){ return w.availability==='Available'; });
+
+  // how many jobs each available worker can do
+  var canDoCount = {};
+  for (var i = 0; i < available.length; i++) {
+    var w = available[i], c = 0;
+    for (var j = 0; j < jobs.length; j++) {
+      if (state.skills[w.id][jobs[j].id]) c++;
     }
+    canDoCount[w.id] = c;
+  }
+
+  var used = {};
+  var assigned = {};
+
+  // sort jobs: higher demand first; tie‑break by fewer eligible workers
+  var jobsSorted = jobs.slice().sort(function(a, b){
+    var ea = 0, eb = 0;
+    for (var k = 0; k < available.length; k++) {
+      var ww = available[k];
+      if (state.skills[ww.id][a.id]) ea++;
+      if (state.skills[ww.id][b.id]) eb++;
+    }
+    var d = (state.demand[b.id]||0) - (state.demand[a.id]||0);
+    return d !== 0 ? d : (ea - eb);
+  });
+
+  for (var x = 0; x < jobsSorted.length; x++) {
+    var job = jobsSorted[x];
+    var need = Math.max(0, Number(state.demand[job.id]||0));
+    var pool = available
+      .filter(function(w){ return !used[w.id] && state.skills[w.id][job.id]; })
+      .sort(function(a,b){ return (canDoCount[a.id]||0) - (canDoCount[b.id]||0); });
+
+    assigned[job.id] = [];
+    for (var t = 0; t < need && t < pool.length; t++) {
+      var pick = pool[t];
+      assigned[job.id].push(pick.id);
+      used[pick.id] = true;
+    }
+  }
+
+  var filled = 0, needed = 0;
+  for (var jid in assigned) if (assigned.hasOwnProperty(jid)) filled += assigned[jid].length;
+  for (jid in state.demand) if (state.demand.hasOwnProperty(jid)) needed += Number(state.demand[jid]||0);
+
+  return { assigned:assigned, filled:filled, needed:needed, unfilled:Math.max(0, needed - filled) };
+}
+
 
     // ---------------- Animation: fly from pool to slot (WAAPI) ----------------
     function flyFromPoolToSlot(poolEl, slotEl){

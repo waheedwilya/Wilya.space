@@ -1,5 +1,5 @@
 // =====================
-// Wilya Hero Widget
+// Wilya Hero Widget for wilya.space
 // =====================
 (function () {
   const widgetRoot = document.getElementById("wilya-hero-widget");

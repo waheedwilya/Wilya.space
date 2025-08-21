@@ -1,4 +1,4 @@
-/* Wilya Staffing Planner — CSP‑safe, plain JS (with fly‑in animation via Web Animations API) */
+/* Wilya Staffing Planner — CSP‑safe, plain JS (with fly‑in animation via Web Animations API) with Jekyll*/
 (function () {
   'use strict';
 

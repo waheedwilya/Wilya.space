@@ -15,3 +15,26 @@ html, body {
   background: var(--wilya-bg, #ffffff);
   font-family: var(--wilya-font, Arial, sans-serif);
 }
+/* Intro paragraph above the chatbox */
+.hero-intro {
+  width: min(720px, 92vw);
+  margin: 28px auto 8px auto; /* centered, small gap above chat */
+  text-align: center;
+  font-family: var(--wilya-font, Arial, sans-serif);
+  color: var(--wilya-text, #0b1220);
+}
+
+.hero-intro h1 {
+  margin: 0 0 8px 0;
+  font-size: 1.6rem;
+  line-height: 1.25;
+  font-weight: 800;
+}
+
+.hero-intro p {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--wilya-muted, #6b7280);
+}
+

@@ -8,3 +8,10 @@
   --wilya-radius: 14px;
   --wilya-font: "Inter", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 }
+/* styles.css — add at the end */
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--wilya-bg, #ffffff);
+  font-family: var(--wilya-font, Arial, sans-serif);
+}

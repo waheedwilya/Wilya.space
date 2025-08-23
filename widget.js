@@ -1,103 +1,59 @@
 // widget.js
-
 document.addEventListener("DOMContentLoaded", () => {
-  // Create container
+  // Container
   const widget = document.createElement("div");
   widget.id = "wilya-chatbox";
-  widget.style.position = "relative"; // sits in normal flow
-  widget.style.margin = "20px auto";  // center horizontally
-  widget.style.width = "600px";
-  widget.style.height = "350px";
-  widget.style.border = "1px solid #ccc";
-  widget.style.borderRadius = "12px";
-  widget.style.boxShadow = "0 4px 8px rgba(0,0,0,0.2)";
-  widget.style.backgroundColor = "#fff";
-  widget.style.display = "flex";
-  widget.style.flexDirection = "column";
-  widget.style.fontFamily = "Arial, sans-serif";
-  document.body.insertBefore(widget, document.body.firstChild); // place at top
+  document.body.insertBefore(widget, document.body.firstChild);
 
-  // Title bar
+  // Header
   const header = document.createElement("div");
-  header.innerText = "💬 Wilya Chat";
-  header.style.backgroundColor = "#007bff";
-  header.style.color = "#fff";
-  header.style.padding = "12px";
-  header.style.borderTopLeftRadius = "12px";
-  header.style.borderTopRightRadius = "12px";
-  header.style.fontWeight = "bold";
-  header.style.textAlign = "center";
+  header.className = "w-header";
+  header.textContent = "Wilya • Workforce Assistant";
   widget.appendChild(header);
 
-  // Chat window
-  const chatWindow = document.createElement("div");
-  chatWindow.style.flex = "1";
-  chatWindow.style.padding = "10px";
-  chatWindow.style.overflowY = "auto";
-  widget.appendChild(chatWindow);
+  // Chat area
+  const chat = document.createElement("div");
+  chat.className = "w-chat";
+  widget.appendChild(chat);
 
   // Input area
-  const inputArea = document.createElement("div");
-  inputArea.style.display = "flex";
-  inputArea.style.borderTop = "1px solid #eee";
-  widget.appendChild(inputArea);
+  const inputWrap = document.createElement("div");
+  inputWrap.className = "w-input";
+  widget.appendChild(inputWrap);
 
   const input = document.createElement("input");
   input.type = "text";
-  input.placeholder = "Type a message…";
-  input.style.flex = "1";
-  input.style.border = "none";
-  input.style.padding = "10px";
-  input.style.outline = "none";
-  inputArea.appendChild(input);
+  input.placeholder = "Ask about skills-based scheduling, OT, coverage…";
+  inputWrap.appendChild(input);
 
-  const sendBtn = document.createElement("button");
-  sendBtn.innerText = "Send";
-  sendBtn.style.border = "none";
-  sendBtn.style.padding = "10px 16px";
-  sendBtn.style.backgroundColor = "#007bff";
-  sendBtn.style.color = "#fff";
-  sendBtn.style.cursor = "pointer";
-  sendBtn.style.borderRadius = "0 0 12px 0";
-  inputArea.appendChild(sendBtn);
+  const send = document.createElement("button");
+  send.className = "w-send";
+  send.textContent = "Send";
+  inputWrap.appendChild(send);
 
-  // Helper: add a message bubble
+  // Helper
   function addMessage(text, sender = "system") {
     const msg = document.createElement("div");
-    msg.innerText = text;
-    msg.style.margin = "6px 0";
-    msg.style.padding = "8px 12px";
-    msg.style.borderRadius = "12px";
-    msg.style.maxWidth = "80%";
-    msg.style.wordWrap = "break-word";
-    if (sender === "user") {
-      msg.style.alignSelf = "flex-end";
-      msg.style.backgroundColor = "#007bff";
-      msg.style.color = "#fff";
-    } else {
-      msg.style.alignSelf = "flex-start";
-      msg.style.backgroundColor = "#f1f1f1";
-    }
-    chatWindow.appendChild(msg);
-    chatWindow.scrollTop = chatWindow.scrollHeight;
+    msg.className = `bubble ${sender}`;
+    msg.textContent = text;
+    chat.appendChild(msg);
+    chat.scrollTop = chat.scrollHeight;
   }
 
-  // Greet the user
-  addMessage("👋 Hello! Welcome to Wilya chatbox.");
+  // Greeting
+  addMessage("👋 Welcome to Wilya. This is a demo chat—reply with anything to see a branded response.");
 
-  // Send handler
-  sendBtn.addEventListener("click", () => {
-    if (input.value.trim() === "") return;
-    addMessage(input.value, "user");
+  // Handlers
+  function handleSend() {
+    const val = input.value.trim();
+    if (!val) return;
+    addMessage(val, "user");
     input.value = "";
-
-    // Simple bot reply
     setTimeout(() => {
-      addMessage("Hello World! You typed something.");
-    }, 500);
-  });
+      addMessage("Hello from Wilya — your message was received. (This is a placeholder reply.)");
+    }, 400);
+  }
 
-  input.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") sendBtn.click();
-  });
+  send.addEventListener("click", handleSend);
+  input.addEventListener("keypress", (e) => { if (e.key === "Enter") handleSend(); });
 });

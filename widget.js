@@ -1,5 +1,4 @@
 // widget.js
-document.body.insertBefore(widget, document.body.firstChild);
 
 document.addEventListener("DOMContentLoaded", () => {
   // Container
@@ -32,6 +31,16 @@ document.addEventListener("DOMContentLoaded", () => {
   send.className = "w-send";
   send.textContent = "Send";
   inputWrap.appendChild(send);
+
+   widget.appendChild(inputWrap);
+
+  // --- Insert below intro (or at top if no intro) ---
+  const anchor = document.getElementById("hero-intro");
+  if (anchor) {
+    anchor.insertAdjacentElement("afterend", widget);
+  } else {
+    document.body.insertBefore(widget, document.body.firstChild);
+  }
 
   // Helper
   function addMessage(text, sender = "system") {

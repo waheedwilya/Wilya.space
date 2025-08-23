@@ -1,4 +1,6 @@
 // widget.js
+document.body.insertBefore(widget, document.body.firstChild);
+
 document.addEventListener("DOMContentLoaded", () => {
   // Container
   const widget = document.createElement("div");

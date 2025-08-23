@@ -2,23 +2,20 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Wilya Chatbox Test</title>
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      font-family: Arial, sans-serif;
-      background-color: #f9f9f9;
-    }
-  </style>
+
+  <!-- Global brand tokens FIRST -->
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- Chatbox-specific styles SECOND -->
+  <link rel="stylesheet" href="widget.css" />
 </head>
 <body>
 
-  <!-- You don’t need to add a div for the chatbox -->
-  <!-- widget.js will insert it automatically at the top -->
+  <!-- Your normal page content goes here -->
 
-  <!-- Load the chat widget -->
+  <!-- Load the chat widget LAST so it can insert itself at the top -->
   <script src="widget.js"></script>
 </body>
 </html>

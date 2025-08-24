@@ -87,3 +87,33 @@
   color: #fff;
   align-self: flex-end;
 }
+/* Summary card under chat */
+.result-card {
+  border: 1px solid var(--wilya-border, #e5e7eb);
+  background: var(--wilya-surface, #fff);
+  border-radius: 12px;
+  padding: 14px;
+  margin: 10px 0;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+  font-size: 0.95rem;
+}
+
+.result-card .result-title {
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.result-card .stat-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.result-card .stat { padding: 8px; border: 1px dashed var(--wilya-border, #e5e7eb); border-radius: 10px; }
+.result-card .stat-label { font-size: 0.8rem; color: var(--wilya-muted, #6b7280); margin-bottom: 4px; }
+.result-card .stat-value { font-size: 1.05rem; font-weight: 700; }
+
+.result-card .kv ul { margin: 6px 0 0 18px; }
+.result-card details { margin-top: 10px; }
+.result-card summary { cursor: pointer; color: var(--wilya-primary, #1f6feb); font-weight: 600; }

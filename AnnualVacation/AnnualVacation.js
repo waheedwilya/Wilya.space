@@ -1,0 +1,718 @@
+function App() {
+  const [db, setDb] = React.useState(null);
+  const [auth, setAuth] = React.useState(null);
+  const [user, setUser] = React.useState(null);
+  const [isAuthReady, setIsAuthReady] = React.useState(false);
+  const [userRole, setUserRole] = React.useState('employee'); // Default to employee role
+  const [currentView, setCurrentView] = React.useState('home'); // New state for navigation
+
+  const supervisorId = 'mock-supervisor-id-1'; // Hardcoded supervisor ID for demonstration
+
+  // State for the employee page
+  const [name, setName] = React.useState('John Doe');
+  const [seniorityDate, setSeniorityDate] = React.useState('2015-01-01');
+  const [vacationDates, setVacationDates] = React.useState([]);
+  const [yearsOfService, setYearsOfService] = React.useState(0);
+  const [weeksOfVacation, setWeeksOfVacation] = React.useState(0);
+  const [message, setMessage] = React.useState('');
+  const [isMessageVisible, setIsMessageVisible] = React.useState(false);
+  const [currentWeekIndex, setCurrentWeekIndex] = React.useState(0);
+
+  // State for the supervisor page
+  const [vacationRequests, setVacationRequests] = React.useState([]);
+
+  // Refs for modal management
+  const modalRef = React.useRef(null);
+
+  // Function to show a temporary message
+  const showMessage = (msg, duration = 3000) => {
+    setMessage(msg);
+    setIsMessageVisible(true);
+    setTimeout(() => {
+      setIsMessageVisible(false);
+      setMessage('');
+    }, duration);
+  };
+
+  // Helper function to format date
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const [year, month, day] = dateString.split('-');
+    return `${month}/${day}/${year}`;
+  };
+
+  // Initialize Firebase and set up auth listener
+  React.useEffect(() => {
+    try {
+      const app = window.firebase.initializeApp(window.firebaseConfig);
+      setDb(window.firebase.getFirestore(app));
+      setAuth(window.firebase.getAuth(app));
+    } catch (error) {
+      console.error("Firebase initialization error:", error);
+      showMessage("Error initializing the app. Please check the configuration.");
+    }
+  }, []);
+
+  // Set up auth listener and sign in
+  React.useEffect(() => {
+    if (auth) {
+      const unsubscribe = window.firebase.onAuthStateChanged(auth, async (currentUser) => {
+        if (currentUser) {
+          setUser(currentUser);
+          if (currentUser.uid === supervisorId) {
+            setUserRole('supervisor');
+          } else {
+            setUserRole('employee');
+          }
+        } else {
+          try {
+            if (window.initialAuthToken) {
+              await window.firebase.signInWithCustomToken(auth, window.initialAuthToken);
+            } else {
+              await window.firebase.signInAnonymously(auth);
+            }
+          } catch (error) {
+            console.error("Firebase auth error:", error);
+            showMessage("Auth failed. Please try again.");
+          }
+        }
+        setIsAuthReady(true);
+      });
+      return () => unsubscribe();
+    }
+  }, [auth, supervisorId]);
+
+  // Add a sample request on first load to ensure the page is not empty
+  React.useEffect(() => {
+    const addSampleRequest = async () => {
+      if (!db || !user || !isAuthReady) return;
+
+      const requestsCollectionRef = window.firebase.collection(db, `artifacts/${window.appId}/public/data/vacation_requests`);
+      const snapshot = await window.firebase.getDocs(requestsCollectionRef);
+
+      if (snapshot.empty) {
+        const sampleRequests = [
+          {
+            name: 'Jane Doe',
+            seniorityDate: '2018-05-15',
+            vacationDates: JSON.stringify([
+              [{ startDate: '2026-07-01', endDate: '2026-07-07' }],
+              [{ startDate: '2026-08-10', endDate: '2026-08-17' }]
+            ]),
+            yearsOfService: 7,
+            status: 'pending',
+            submittedAt: window.firebase.serverTimestamp(),
+            userId: user.uid
+          },
+          {
+            name: 'Robert Brown',
+            seniorityDate: '2020-03-20',
+            vacationDates: JSON.stringify([
+              [{ startDate: '2026-09-05', endDate: '2026-09-12' }],
+            ]),
+            yearsOfService: 5,
+            status: 'pending',
+            submittedAt: window.firebase.serverTimestamp(),
+            userId: user.uid
+          },
+          {
+            name: 'Emily White',
+            seniorityDate: '2012-01-10',
+            vacationDates: JSON.stringify([
+              [{ startDate: '2026-06-01', endDate: '2026-06-07' }],
+              [{ startDate: '2026-06-15', endDate: '2026-06-22' }],
+              [{ startDate: '2026-07-01', endDate: '2026-07-07' }],
+            ]),
+            yearsOfService: 13,
+            status: 'approved',
+            submittedAt: window.firebase.serverTimestamp(),
+            userId: user.uid
+          },
+          {
+            name: 'Michael Green',
+            seniorityDate: '2024-02-28',
+            vacationDates: JSON.stringify([
+              [{ startDate: '2026-11-01', endDate: '2026-11-08' }],
+            ]),
+            yearsOfService: 1,
+            status: 'pending',
+            submittedAt: window.firebase.serverTimestamp(),
+            userId: user.uid
+          },
+          {
+            name: 'Olivia Jones',
+            seniorityDate: '2019-09-01',
+            vacationDates: JSON.stringify([
+              [{ startDate: '2026-09-20', endDate: '2026-09-27' }],
+              [{ startDate: '2026-10-05', endDate: '2026-10-12' }]
+            ]),
+            yearsOfService: 6,
+            status: 'rejected',
+            submittedAt: window.firebase.serverTimestamp(),
+            userId: user.uid
+          },
+        ];
+
+        for (const req of sampleRequests) {
+          try {
+            await window.firebase.addDoc(requestsCollectionRef, req);
+          } catch (e) {
+            console.error("Error adding sample document:", e);
+          }
+        }
+      }
+    };
+    addSampleRequest();
+  }, [db, user, isAuthReady, window.appId]);
+
+  // Calculate years of service and vacation weeks whenever seniority date changes
+  React.useEffect(() => {
+    if (seniorityDate) {
+      const seniorDate = new Date(seniorityDate);
+      const today = new Date();
+      const diffInTime = today.getTime() - seniorDate.getTime();
+      const diffInYears = diffInTime / (1000 * 3600 * 24 * 365.25);
+      const years = Math.floor(diffInYears);
+      setYearsOfService(years);
+
+      // New vacation week calculation based on the provided rules
+      let calculatedWeeks = 0;
+      if (years >= 35) {
+        calculatedWeeks = 6;
+      } else if (years >= 25) {
+        calculatedWeeks = 5;
+      } else if (years >= 10) {
+        calculatedWeeks = 4;
+      } else if (years >= 3) {
+        calculatedWeeks = 3;
+      } else if (years >= 1) {
+        calculatedWeeks = 2;
+      }
+      setWeeksOfVacation(calculatedWeeks);
+      // Initialize vacation dates array with empty objects for each week
+      setVacationDates(Array.from({ length: calculatedWeeks }, () => ([{ startDate: '', endDate: '' }])));
+    }
+  }, [seniorityDate]);
+
+  // Handle data fetching for supervisor page
+  React.useEffect(() => {
+    if (isAuthReady && db) { // Removed user and userRole check
+      const requestsCollectionRef = window.firebase.collection(db, `artifacts/${window.appId}/public/data/vacation_requests`);
+      const q = window.firebase.query(requestsCollectionRef);
+
+      const unsubscribe = window.firebase.onSnapshot(q, (snapshot) => {
+        const realRequests = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            // Parse the JSON string back into a nested array
+            vacationDates: data.vacationDates ? JSON.parse(data.vacationDates) : []
+          };
+        });
+
+        // Sort by seniority date (oldest first) for seniority-based allocation
+        const sortedRequests = realRequests.sort((a, b) => {
+          const dateA = new Date(a.seniorityDate);
+          const dateB = new Date(b.seniorityDate);
+          return dateA - dateB;
+        });
+
+        setVacationRequests(sortedRequests);
+      }, (error) => {
+        console.error("Error fetching vacation requests:", error);
+        showMessage("Failed to load requests. Please try again.");
+      });
+
+      return () => unsubscribe();
+    }
+  }, [isAuthReady, db, userRole, window.appId]);
+
+  // Handle vacation submission
+  const handleSubmitRequest = async () => {
+    if (!name || !seniorityDate) {
+      showMessage("Please fill in your name and seniority date.");
+      return;
+    }
+
+    const allDatesFilled = vacationDates.every(weekOptions =>
+      weekOptions.every(option => option.startDate && option.endDate)
+    );
+    if (!allDatesFilled) {
+      showMessage("Please fill in all requested vacation dates.");
+      return;
+    }
+    if (!db) {
+      showMessage("Database not ready. Please wait a moment.");
+      return;
+    }
+
+    const requestsCollectionRef = window.firebase.collection(db, `artifacts/${window.appId}/public/data/vacation_requests`);
+
+    try {
+      await window.firebase.addDoc(requestsCollectionRef, {
+        name,
+        seniorityDate,
+        // Stringify the nested array for storage
+        vacationDates: JSON.stringify(vacationDates),
+        yearsOfService,
+        status: 'pending',
+        submittedAt: window.firebase.serverTimestamp(),
+        userId: user.uid
+      });
+      setName('');
+      setSeniorityDate('');
+      setVacationDates([]);
+      setYearsOfService(0);
+      setWeeksOfVacation(0);
+      showMessage("Vacation request submitted successfully!");
+    } catch (error) {
+      console.error("Error submitting request:", error);
+      showMessage("Failed to submit request. Please try again.");
+    }
+  };
+
+  const handleDateChange = (weekIndex, optionIndex, field, value) => {
+    const newVacationDates = [...vacationDates];
+    newVacationDates[weekIndex][optionIndex] = {
+      ...newVacationDates[weekIndex][optionIndex],
+      [field]: value
+    };
+    setVacationDates(newVacationDates);
+  };
+
+  const addDateOption = (weekIndex) => {
+    const newVacationDates = [...vacationDates];
+    if (newVacationDates[weekIndex].length < 2) {
+      newVacationDates[weekIndex].push({ startDate: '', endDate: '' });
+      setVacationDates(newVacationDates);
+    }
+  };
+
+  const removeDateOption = (weekIndex) => {
+    const newVacationDates = [...vacationDates];
+    newVacationDates[weekIndex].splice(1, 1);
+    setVacationDates(newVacationDates);
+  };
+
+  // Handle vacation approval by supervisor
+  const handleApproveRequest = async (requestId) => {
+    if (!db) {
+      showMessage("Database not ready.");
+      return;
+    }
+    try {
+      const docRef = window.firebase.doc(db, `artifacts/${window.appId}/public/data/vacation_requests`, requestId);
+      await window.firebase.updateDoc(docRef, { status: 'approved', approvedAt: window.firebase.serverTimestamp() });
+      showMessage("Vacation approved successfully!");
+    } catch (error) {
+      console.error("Error approving vacation:", error);
+      showMessage("Failed to approve vacation. Please try again.");
+    }
+  };
+
+  // Handle vacation rejection by supervisor
+  const handleRejectRequest = async (requestId) => {
+    if (!db) {
+      showMessage("Database not ready.");
+      return;
+    }
+    try {
+      const docRef = window.firebase.doc(db, `artifacts/${window.appId}/public/data/vacation_requests`, requestId);
+      await window.firebase.updateDoc(docRef, { status: 'rejected', rejectedAt: window.firebase.serverTimestamp() });
+      showMessage("Vacation rejected.");
+    } catch (error) {
+      console.error("Error rejecting vacation:", error);
+      showMessage("Failed to reject vacation. Please try again.");
+    }
+  };
+
+  const handleAllocateVacations = async () => {
+    if (!db) {
+      showMessage("Database not ready.");
+      return;
+    }
+    showMessage("Allocating pending requests based on seniority...", 60000);
+
+    try {
+      const pendingRequests = vacationRequests.filter(req => req.status === 'pending');
+      const approvedRequests = [];
+      const rejectedRequests = [];
+      const allocatedDates = new Set();
+
+      const getDatesInRange = (startDate, endDate) => {
+        const dates = [];
+        const currentDate = new Date(startDate);
+        const stopDate = new Date(endDate);
+        while (currentDate <= stopDate) {
+          dates.push(currentDate.toISOString().split('T')[0]);
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+        return dates;
+      };
+
+      for (const req of pendingRequests) {
+        let isConflicting = false;
+        // The data from Firestore is already parsed, so no need for JSON.parse
+        const vacationDates = req.vacationDates || [];
+
+        for (const weekOptions of vacationDates) {
+          const primaryOption = weekOptions[0];
+          if (primaryOption) {
+            const datesInOption = getDatesInRange(primaryOption.startDate, primaryOption.endDate);
+            for (const date of datesInOption) {
+              if (allocatedDates.has(date)) {
+                isConflicting = true;
+                break;
+              }
+            }
+          }
+          if (isConflicting) break;
+        }
+
+        if (isConflicting) {
+          rejectedRequests.push(req);
+        } else {
+          approvedRequests.push(req);
+          for (const weekOptions of vacationDates) {
+            const primaryOption = weekOptions[0];
+            if (primaryOption) {
+              const datesInOption = getDatesInRange(primaryOption.startDate, primaryOption.endDate);
+              datesInOption.forEach(date => allocatedDates.add(date));
+            }
+          }
+        }
+      }
+
+      const updatePromises = [];
+      approvedRequests.forEach(req => {
+        const docRef = window.firebase.doc(db, `artifacts/${window.appId}/public/data/vacation_requests`, req.id);
+        updatePromises.push(window.firebase.updateDoc(docRef, { status: 'approved', approvedAt: window.firebase.serverTimestamp() }));
+      });
+      rejectedRequests.forEach(req => {
+        const docRef = window.firebase.doc(db, `artifacts/${window.appId}/public/data/vacation_requests`, req.id);
+        updatePromises.push(window.firebase.updateDoc(docRef, { status: 'rejected', rejectedAt: window.firebase.serverTimestamp() }));
+      });
+
+      await Promise.all(updatePromises);
+      showMessage(`Successfully allocated ${approvedRequests.length} vacation requests and rejected ${rejectedRequests.length} conflicting requests.`);
+
+    } catch (error) {
+      console.error("Error allocating all vacations:", error);
+      showMessage("Failed to allocate vacations. Please try again.");
+    }
+  };
+
+  const handleResetRequests = async () => {
+    if (!db) {
+      showMessage("Database not ready.");
+      return;
+    }
+    showMessage("Resetting all requests...", 60000); // Show a loading message
+
+    try {
+      const requestsCollectionRef = window.firebase.collection(db, `artifacts/${window.appId}/public/data/vacation_requests`);
+      const snapshot = await window.firebase.getDocsFromQuery(requestsCollectionRef);
+      
+      const updatePromises = snapshot.docs.map(docItem => {
+        const docRef = window.firebase.doc(db, `artifacts/${window.appId}/public/data/vacation_requests`, docItem.id);
+        return window.firebase.updateDoc(docRef, { status: 'pending' });
+      });
+
+      await Promise.all(updatePromises);
+      showMessage(`Successfully reset all ${snapshot.size} requests to pending.`);
+    } catch (error) {
+      console.error("Error resetting all vacations:", error);
+      showMessage("Failed to reset vacations. Please try again.");
+    }
+  };
+  
+  // Home Page Component
+  const HomePage = () => (
+    <div className="flex flex-col items-center justify-center p-6 bg-white rounded-lg shadow-md w-full max-w-xl">
+      <h1 className="text-3xl font-bold text-gray-800 mb-6 text-center">Vacation Planner</h1>
+      <div className="flex flex-col space-y-4 w-full">
+        <button
+          onClick={() => setCurrentView('employee')}
+          className="w-full py-2 px-3 rounded-md text-white font-semibold bg-[#0F2133] hover:bg-[#08121a] focus:outline-none focus:ring-2 focus:ring-[#2a4561] focus:ring-offset-2 transition-colors"
+        >
+          Employee Vacation Request
+        </button>
+        <button
+          onClick={() => setCurrentView('supervisor')}
+          className="w-full py-2 px-3 rounded-md text-white font-semibold bg-[#0F2133] hover:bg-[#08121a] focus:outline-none focus:ring-2 focus:ring-[#2a4561] focus:ring-offset-2 transition-colors"
+        >
+          Supervisor Dashboard
+        </button>
+      </div>
+    </div>
+  );
+
+  const EmployeePage = () => {
+    return (
+      <div className="flex flex-col items-center justify-center p-6 bg-white rounded-lg shadow-md w-full">
+        <h1 className="text-3xl font-bold text-gray-800 mb-6">Employee Vacation Request</h1>
+        <button 
+          onClick={() => setCurrentView('home')}
+          className="mb-4 text-blue-600 hover:underline text-sm font-medium"
+        >
+          &larr; Back to Home
+        </button>
+        <div className="w-full space-y-4">
+          <div>
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700">Name</label>
+            <input
+              type="text"
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Your Name"
+              className="mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div>
+            <label htmlFor="seniorityDate" className="block text-sm font-medium text-gray-700">Seniority Date</label>
+            <input
+              type="date"
+              id="seniorityDate"
+              value={seniorityDate}
+              onChange={(e) => setSeniorityDate(e.target.value)}
+              className="mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div className="flex justify-between items-center bg-gray-100 p-4 rounded-md">
+            <p className="text-sm font-medium text-gray-700">Years of Service: <span className="font-bold text-gray-900">{yearsOfService}</span></p>
+            <p className="text-sm font-medium text-gray-700">Weeks of Vacation: <span className="font-bold text-gray-900">{weeksOfVacation}</span></p>
+          </div>
+          <div className="space-y-2 border p-3 rounded-md">
+            <div className="flex justify-between items-center mb-4">
+              <p className="block text-sm font-medium text-gray-700">Week {currentWeekIndex + 1} of {weeksOfVacation}</p>
+              <div className="flex space-x-2">
+                {vacationDates[currentWeekIndex]?.length < 2 && (
+                  <button
+                    onClick={() => addDateOption(currentWeekIndex)}
+                    className="text-white bg-[#0F2133] hover:bg-[#08121a] rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold leading-none"
+                  >
+                    +
+                  </button>
+                )}
+                {vacationDates[currentWeekIndex]?.length > 1 && (
+                  <button
+                    onClick={() => removeDateOption(currentWeekIndex)}
+                    className="text-white bg-red-500 hover:bg-red-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold leading-none"
+                  >
+                    -
+                  </button>
+                )}
+              </div>
+            </div>
+            {vacationDates[currentWeekIndex]?.map((option, optionIndex) => (
+              <div key={optionIndex} className="space-y-2">
+                <p className="block text-xs font-medium text-gray-700">Option {optionIndex + 1}</p>
+                <div className="flex space-x-2">
+                  <div className="w-1/2">
+                    <label htmlFor={`week-${currentWeekIndex}-option-${optionIndex}-start`} className="block text-xs font-medium text-gray-500">Start Date</label>
+                    <input
+                      type="date"
+                      id={`week-${currentWeekIndex}-option-${optionIndex}-start`}
+                      value={option.startDate || ''}
+                      onChange={(e) => handleDateChange(currentWeekIndex, optionIndex, 'startDate', e.target.value)}
+                      min="2026-01-01"
+                      max="2026-12-31"
+                      className="mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div className="w-1/2">
+                    <label htmlFor={`week-${currentWeekIndex}-option-${optionIndex}-end`} className="block text-xs font-medium text-gray-500">End Date</label>
+                    <input
+                      type="date"
+                      id={`week-${currentWeekIndex}-option-${optionIndex}-end`}
+                      value={option.endDate || ''}
+                      onChange={(e) => handleDateChange(currentWeekIndex, optionIndex, 'endDate', e.target.value)}
+                      min="2026-01-01"
+                      max="2026-12-31"
+                      className="mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-between mt-4">
+            <button
+              onClick={() => setCurrentWeekIndex(prev => prev - 1)}
+              disabled={currentWeekIndex === 0}
+              className={`py-2 px-4 rounded-md text-white font-semibold bg-gray-500 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 transition-colors ${currentWeekIndex === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              Previous
+            </button>
+            {currentWeekIndex < weeksOfVacation - 1 ? (
+              <button
+                onClick={() => setCurrentWeekIndex(prev => prev + 1)}
+                className="py-2 px-4 rounded-md text-white font-semibold bg-[#0F2133] hover:bg-[#08121a] focus:outline-none focus:ring-2 focus:ring-[#2a4561] focus:ring-offset-2 transition-colors"
+              >
+                Next
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmitRequest}
+                className="py-2 px-4 rounded-md text-white font-semibold bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors"
+              >
+                Submit Request
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const SupervisorPage = () => {
+    return (
+      <div className="flex flex-col items-center p-6 bg-white rounded-lg shadow-md w-full">
+        <h1 className="text-3xl font-bold text-gray-800 mb-6">Supervisor Dashboard</h1>
+        <button 
+          onClick={() => setCurrentView('home')}
+          className="mb-4 text-blue-600 hover:underline text-sm font-medium"
+        >
+          &larr; Back to Home
+        </button>
+        <div className="flex justify-between w-full mb-4">
+          <button
+            onClick={handleAllocateVacations}
+            className="py-1 px-3 rounded-md text-white font-semibold bg-[#0F2133] hover:bg-[#08121a] focus:outline-none focus:ring-2 focus:ring-[#2a4561] focus:ring-offset-2 transition-colors"
+          >
+            Allocate Vacations
+          </button>
+          <button
+            onClick={handleResetRequests}
+            className="py-1 px-3 rounded-md text-white font-semibold bg-gray-500 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 transition-colors"
+          >
+            Reset All Requests
+          </button>
+        </div>
+        <p className="text-sm text-gray-500 mb-6">Requests are sorted by seniority date (oldest first).</p>
+        <div className="w-full overflow-x-auto">
+          {vacationRequests.length > 0 ? (
+            <table className="min-w-full divide-y divide-gray-200 rounded-lg shadow-md">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Name
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Seniority Date
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Years of Service
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Requested Dates
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th scope="col" className="relative px-6 py-3">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {vacationRequests.map((request) => (
+                  <tr key={request.id}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {request.name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatDate(request.seniorityDate)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {request.yearsOfService}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {Array.isArray(request.vacationDates) && request.vacationDates.map((week, index) => (
+                        <div key={index} className="mb-2">
+                          <p className="font-semibold text-gray-700">Week {index + 1}:</p>
+                          {Array.isArray(week) && week.map((option, optionIndex) => (
+                            <p key={optionIndex} className="text-xs text-gray-600">
+                              Option {optionIndex + 1}: {formatDate(option.startDate)} to {formatDate(option.endDate)}
+                            </p>
+                          ))}
+                        </div>
+                      ))}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${request.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : request.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                        {request.status.toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      {request.status === 'pending' && (
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleApproveRequest(request.id)}
+                            className="py-1 px-3 rounded-md text-white font-semibold bg-[#0F2133] hover:bg-[#08121a] focus:outline-none focus:ring-2 focus:ring-[#2a4561] focus:ring-offset-2 transition-colors"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleRejectRequest(request.id)}
+                            className="py-1 px-3 rounded-md text-white font-semibold bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="text-center text-gray-500">No vacation requests at this time.</p>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex min-h-screen items-center justify-center p-4 md:p-8 bg-gray-100 font-inter">
+      <div className="w-full max-w-screen-lg space-y-6">
+        {isAuthReady ? (
+          (() => {
+            switch (currentView) {
+              case 'home':
+                return <HomePage />;
+              case 'employee':
+                return <EmployeePage />;
+              case 'supervisor':
+                return <SupervisorPage />;
+              default:
+                return <HomePage />;
+            }
+          })()
+        ) : (
+          <div className="flex flex-col items-center justify-center p-6 bg-white rounded-lg shadow-md w-full">
+            <h1 className="text-3xl font-bold text-gray-800 animate-pulse">Loading...</h1>
+            <p className="text-gray-500 mt-2">Connecting to the system.</p>
+          </div>
+        )}
+
+        {isMessageVisible && (
+          <div className="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 z-50">
+            <div ref={modalRef} className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full text-center space-y-4">
+              <p className="text-gray-800 font-medium">{message}</p>
+              <button
+                onClick={() => setIsMessageVisible(false)}
+                className="w-full py-2 px-4 rounded-md text-white font-semibold bg-[#0F2133] hover:bg-[#08121a]"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

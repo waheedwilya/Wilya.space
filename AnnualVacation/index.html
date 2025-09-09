@@ -1,793 +1,665 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vacation Planner</title>
-    <!-- Tailwind CSS for styling -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; color: #1f2937; margin: 0; padding: 0; }
-        .rounded-lg { border-radius: 0.5rem; }
-        .shadow-md { box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); }
-        .p-6 { padding: 1.5rem; }
-        .flex { display: flex; }
-        .flex-col { flex-direction: column; }
-        .items-center { align-items: center; }
-        .justify-center { justify-content: center; }
-        .space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: 1rem; }
-        .space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-top: 1.5rem; }
-        .w-full { width: 100%; }
-        .max-w-xl { max-width: 36rem; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Vacation Planner (Vanilla JS)</title>
+  <style>
+    :root {
+      --ink:#1f2937; --muted:#6b7280; --bg:#f3f4f6; --card:#ffffff;
+      --brand:#0F2133; --brand-d:#08121a; --ok:#16a34a; --warn:#ca8a04; --bad:#dc2626;
+      --ring:#2a4561;
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui,-apple-system,Segoe UI,Roboto,Inter,Helvetica,Arial,sans-serif; color:var(--ink); background:var(--bg); }
+    .container { max-width: 1024px; margin: 24px auto; padding: 0 16px; }
+    .card { background:var(--card); border-radius:12px; box-shadow: 0 8px 24px rgba(0,0,0,.08); padding:24px; }
+    h1 { margin:0 0 16px; font-size:28px; }
+    h2 { margin:24px 0 8px; font-size:18px; }
+    .row { display:flex; gap:12px; align-items:center; }
+    .row.wrap { flex-wrap: wrap; }
+    .col { flex:1; min-width: 220px; }
+    label { display:block; font-size:14px; color:var(--muted); margin-bottom:6px; }
+    input[type="text"], input[type="date"] {
+      width:100%; padding:10px 12px; border:1px solid #e5e7eb; border-radius:10px; outline:none;
+    }
+    input:focus { border-color:#93c5fd; box-shadow:0 0 0 4px rgba(2,132,199,.15); }
+    .toolbar { display:flex; gap:8px; }
+    button {
+      appearance:none; border:0; border-radius:10px; padding:10px 14px; font-weight:600; cursor:pointer;
+      background:var(--brand); color:white;
+    }
+    button.secondary { background:#6b7280; }
+    button.ghost { background:transparent; color:#2563eb; padding:0; }
+    button.ok { background:var(--ok); }
+    button.bad { background:var(--bad); }
+    button.warn { background:#374151; }
+    button:disabled { opacity:.5; cursor:not-allowed; }
+    .pill { padding:4px 8px; border-radius:999px; font-size:12px; font-weight:700; display:inline-block; }
+    .PENDING { background:#fef3c7; color:#92400e; }
+    .APPROVED { background:#dcfce7; color:#166534; }
+    .REJECTED { background:#fee2e2; color:#991b1b; }
+    table { width:100%; border-collapse: collapse; }
+    th, td { padding:12px; text-align:left; border-bottom:1px solid #f1f5f9; vertical-align: top; }
+    thead th { font-size:12px; letter-spacing:.06em; color:#6b7280; text-transform:uppercase; }
+    .muted { color:var(--muted); }
+    .statbar { display:flex; justify-content:space-between; background:#f8fafc; padding:10px 12px; border-radius:10px; }
+    .chip-btn { width:28px; height:28px; border-radius:999px; display:grid; place-items:center; font-weight:800; }
+    .center { text-align:center; }
+    .hidden { display:none !important; }
+    .notice {
+      position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; z-index:50;
+    }
+    .notice .panel { background:white; border-radius:12px; padding:20px; width:min(420px, 92vw); text-align:center; }
+    .space { height:12px; }
+    .nav { display:flex; gap:12px; }
+  </style>
 </head>
 <body>
-    <div id="root"></div>
+  <div class="container">
+    <div class="card" id="view-home">
+      <h1>Vacation Planner</h1>
+      <div class="nav">
+        <button id="go-employee">Employee Vacation Request</button>
+        <button id="go-supervisor" class="warn">Supervisor Dashboard</button>
+      </div>
+      <p class="muted" style="margin-top:12px">This build is pure HTML + vanilla JS. If Firebase config is present it will persist to Firestore; otherwise it runs in memory.</p>
+    </div>
 
-    <!-- React and ReactDOM libraries -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-    
-    <!-- Babel for transforming JSX in the browser -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
-    <!-- Firebase libraries as ES modules -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, query, onSnapshot, doc, addDoc, updateDoc, serverTimestamp, getDocs, getDocs as getDocsFromQuery } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        
-        // DO NOT MODIFY: This is a placeholder for the app and user data.
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+    <!-- Employee -->
+    <div class="card hidden" id="view-employee">
+      <div class="toolbar" style="margin-bottom:8px">
+        <button class="ghost" id="back-from-employee">&larr; Back to Home</button>
+      </div>
+      <h1>Employee Vacation Request</h1>
 
-        // Make Firebase functions and data available globally
-        window.firebase = {
-            initializeApp, getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged,
-            getFirestore, collection, query, onSnapshot, doc, addDoc, updateDoc, serverTimestamp, getDocs, getDocsFromQuery
-        };
-        window.firebaseConfig = firebaseConfig;
-        window.appId = appId;
-        window.initialAuthToken = initialAuthToken;
-    </script>
-    
-    <!-- Your main application code, loaded with Babel -->
-    <script type="text/babel">
-        function App() {
-          const [db, setDb] = React.useState(null);
-          const [auth, setAuth] = React.useState(null);
-          const [user, setUser] = React.useState(null);
-          const [isAuthReady, setIsAuthReady] = React.useState(false);
-          const [userRole, setUserRole] = React.useState('employee'); // Default to employee role
-          const [currentView, setCurrentView] = React.useState('home'); // New state for navigation
+      <div class="row wrap">
+        <div class="col">
+          <label for="emp-name">Name</label>
+          <input id="emp-name" type="text" placeholder="Your name" />
+        </div>
+        <div class="col">
+          <label for="emp-seniority">Seniority Date</label>
+          <input id="emp-seniority" type="date" />
+        </div>
+      </div>
 
-          const supervisorId = 'mock-supervisor-id-1'; // Hardcoded supervisor ID for demonstration
+      <div class="statbar" style="margin-top:12px">
+        <div>Years of Service: <strong id="stat-years">0</strong></div>
+        <div>Weeks of Vacation: <strong id="stat-weeks">0</strong></div>
+      </div>
 
-          // State for the employee page
-          const [name, setName] = React.useState('John Doe');
-          const [seniorityDate, setSeniorityDate] = React.useState('2015-01-01');
-          const [vacationDates, setVacationDates] = React.useState([]);
-          const [yearsOfService, setYearsOfService] = React.useState(0);
-          const [weeksOfVacation, setWeeksOfVacation] = React.useState(0);
-          const [message, setMessage] = React.useState('');
-          const [isMessageVisible, setIsMessageVisible] = React.useState(false);
-          const [currentWeekIndex, setCurrentWeekIndex] = React.useState(0);
+      <h2 style="margin-top:16px">Request Weeks</h2>
+      <div class="row" style="justify-content:space-between; align-items:center">
+        <div class="muted">Week <strong id="wk-index">1</strong> of <strong id="wk-total">0</strong></div>
+        <div class="toolbar">
+          <button id="btn-add-option" class="chip-btn" title="Add option">+</button>
+          <button id="btn-remove-option" class="chip-btn warn" title="Remove option">&minus;</button>
+        </div>
+      </div>
 
-          // State for the supervisor page
-          const [vacationRequests, setVacationRequests] = React.useState([]);
+      <div id="options-wrap" style="margin-top:8px"></div>
 
-          // Refs for modal management
-          const modalRef = React.useRef(null);
+      <div class="toolbar" style="justify-content:space-between; margin-top:16px">
+        <div>
+          <button id="btn-prev" class="secondary">Previous</button>
+        </div>
+        <div>
+          <button id="btn-next">Next</button>
+          <button id="btn-submit" class="ok hidden">Submit Request</button>
+        </div>
+      </div>
+    </div>
 
-          // Function to show a temporary message
-          const showMessage = (msg, duration = 3000) => {
-            setMessage(msg);
-            setIsMessageVisible(true);
-            setTimeout(() => {
-              setIsMessageVisible(false);
-              setMessage('');
-            }, duration);
-          };
+    <!-- Supervisor -->
+    <div class="card hidden" id="view-supervisor">
+      <div class="toolbar" style="margin-bottom:8px">
+        <button class="ghost" id="back-from-supervisor">&larr; Back to Home</button>
+      </div>
+      <h1>Supervisor Dashboard</h1>
 
-          // Helper function to format date
-          const formatDate = (dateString) => {
-            if (!dateString) return '';
-            const date = new Date(dateString);
-            if (isNaN(date)) return '';
-            const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
-            const day = (date.getUTCDate()).toString().padStart(2, '0');
-            const year = date.getUTCFullYear();
-            return `${month}/${day}/${year}`;
-          };
+      <div class="toolbar" style="justify-content:space-between; margin-bottom:8px">
+        <div class="toolbar">
+          <button id="btn-allocate">Allocate Vacations</button>
+          <button id="btn-reset" class="secondary">Reset All Requests</button>
+        </div>
+        <span class="muted">Sorted by seniority (oldest first)</span>
+      </div>
 
-          // Initialize Firebase and set up auth listener
-          React.useEffect(() => {
-            try {
-              if (window.firebaseConfig && Object.keys(window.firebaseConfig).length > 0) {
-                const app = window.firebase.initializeApp(window.firebaseConfig);
-                setDb(window.firebase.getFirestore(app));
-                setAuth(window.firebase.getAuth(app));
-              } else {
-                console.error("Firebase configuration is missing or invalid. App cannot be initialized.");
-                showMessage("Error initializing the app. Please check the configuration.");
-              }
-            } catch (error) {
-              console.error("Firebase initialization error:", error);
-              showMessage("Error initializing the app. Please check the configuration.");
-            }
-          }, []);
+      <div class="card" style="padding:0">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Seniority Date</th>
+              <th>Years</th>
+              <th>Requested Dates</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="requests-tbody">
+            <tr><td colspan="6" class="center muted">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
-          // Set up auth listener and sign in
-          React.useEffect(() => {
-            if (auth) {
-              const unsubscribe = window.firebase.onAuthStateChanged(auth, async (currentUser) => {
-                if (currentUser) {
-                  setUser(currentUser);
-                  if (currentUser.uid === supervisorId) {
-                    setUserRole('supervisor');
-                  } else {
-                    setUserRole('employee');
-                  }
-                } else {
-                  try {
-                    if (window.initialAuthToken) {
-                      await window.firebase.signInWithCustomToken(auth, window.initialAuthToken);
-                    } else {
-                      await window.firebase.signInAnonymously(auth);
-                    }
-                  } catch (error) {
-                    console.error("Firebase auth error:", error);
-                    showMessage("Auth failed. Please try again.");
-                  }
-                }
-                setIsAuthReady(true);
-              });
-              return () => unsubscribe();
-            }
-          }, [auth, supervisorId]);
+  <!-- Message Modal -->
+  <div class="notice" id="notice">
+    <div class="panel">
+      <div id="notice-text" style="margin-bottom:12px">Hello</div>
+      <button id="notice-close">Close</button>
+    </div>
+  </div>
 
-          // Add a sample request on first load to ensure the page is not empty
-          React.useEffect(() => {
-            const addSampleRequest = async () => {
-              if (!db || !user || !isAuthReady) return;
+  <!-- OPTIONAL Firebase (works if you already expose window.firebaseConfig, window.appId, window.initialAuthToken) -->
+  <script type="module">
+    // If you don't provide firebaseConfig, we skip imports and run in-memory.
+    const hasFirebaseConfig = typeof window.firebaseConfig !== 'undefined' && window.firebaseConfig && Object.keys(window.firebaseConfig).length > 0;
 
-              const requestsCollectionRef = window.firebase.collection(db, `artifacts/${window.appId}/public/data/vacation_requests`);
-              const snapshot = await window.firebase.getDocs(requestsCollectionRef);
+    if (hasFirebaseConfig) {
+      const { initializeApp } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
+      const { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } =
+        await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
+      const {
+        getFirestore, collection, query, onSnapshot, doc, addDoc, updateDoc, serverTimestamp, getDocs
+      } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
 
-              if (snapshot.empty) {
-                const sampleRequests = [
-                  {
-                    name: 'Jane Doe',
-                    seniorityDate: '2018-05-15',
-                    vacationDates: JSON.stringify([
-                      [{ startDate: '2026-07-01', endDate: '2026-07-07' }],
-                      [{ startDate: '2026-08-10', endDate: '2026-08-17' }]
-                    ]),
-                    yearsOfService: 7,
-                    status: 'pending',
-                    submittedAt: window.firebase.serverTimestamp(),
-                    userId: user.uid
-                  },
-                  {
-                    name: 'Robert Brown',
-                    seniorityDate: '2020-03-20',
-                    vacationDates: JSON.stringify([
-                      [{ startDate: '2026-09-05', endDate: '2026-09-12' }],
-                    ]),
-                    yearsOfService: 5,
-                    status: 'pending',
-                    submittedAt: window.firebase.serverTimestamp(),
-                    userId: user.uid
-                  },
-                  {
-                    name: 'Emily White',
-                    seniorityDate: '2012-01-10',
-                    vacationDates: JSON.stringify([
-                      [{ startDate: '2026-06-01', endDate: '2026-06-07' }],
-                      [{ startDate: '2026-06-15', endDate: '2026-06-22' }],
-                      [{ startDate: '2026-07-01', endDate: '2026-07-07' }],
-                    ]),
-                    yearsOfService: 13,
-                    status: 'approved',
-                    submittedAt: window.firebase.serverTimestamp(),
-                    userId: user.uid
-                  },
-                  {
-                    name: 'Michael Green',
-                    seniorityDate: '2024-02-28',
-                    vacationDates: JSON.stringify([
-                      [{ startDate: '2026-11-01', endDate: '2026-11-08' }],
-                    ]),
-                    yearsOfService: 1,
-                    status: 'pending',
-                    submittedAt: window.firebase.serverTimestamp(),
-                    userId: user.uid
-                  },
-                  {
-                    name: 'Olivia Jones',
-                    seniorityDate: '2019-09-01',
-                    vacationDates: JSON.stringify([
-                      [{ startDate: '2026-09-20', endDate: '2026-09-27' }],
-                      [{ startDate: '2026-10-05', endDate: '2026-10-12' }]
-                    ]),
-                    yearsOfService: 6,
-                    status: 'rejected',
-                    submittedAt: window.firebase.serverTimestamp(),
-                    userId: user.uid
-                  },
-                ];
+      window._fb = { initializeApp, getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged,
+        getFirestore, collection, query, onSnapshot, doc, addDoc, updateDoc, serverTimestamp, getDocs };
+    }
+  </script>
 
-                for (const req of sampleRequests) {
-                  try {
-                    await window.firebase.addDoc(requestsCollectionRef, req);
-                  } catch (e) {
-                    console.error("Error adding sample document:", e);
-                  }
-                }
-              }
-            };
-            addSampleRequest();
-          }, [db, user, isAuthReady, window.appId]);
+  <!-- Main App (Vanilla JS) -->
+  <script>
+    /*********** State ***********/
+    const state = {
+      // roleless UI; supervisor view is just a page
+      name: 'John Doe',
+      seniorityDate: '2015-01-01',
+      years: 0,
+      weeks: 0,
+      currentWeekIndex: 0,
+      vacationDates: [], // Array< Array<{startDate,endDate}> >
+      // data source
+      backend: {
+        mode: 'memory', // 'memory' | 'firestore'
+        userId: 'local-user',
+        ready: false,
+        // firestore bits
+        db: null,
+        appId: window.appId || 'default-app-id'
+      },
+      supervisor: {
+        items: [] // from backend
+      }
+    };
 
-          // Calculate years of service and vacation weeks whenever seniority date changes
-          React.useEffect(() => {
-            if (seniorityDate) {
-              const seniorDate = new Date(seniorityDate);
-              const today = new Date();
-              const diffInTime = today.getTime() - seniorDate.getTime();
-              const diffInYears = diffInTime / (1000 * 3600 * 24 * 365.25);
-              const years = Math.floor(diffInYears);
-              setYearsOfService(years);
+    /*********** DOM helpers ***********/
+    const $ = sel => document.querySelector(sel);
+    const $$ = sel => Array.from(document.querySelectorAll(sel));
+    const show = el => el.classList.remove('hidden');
+    const hide = el => el.classList.add('hidden');
 
-              // New vacation week calculation based on the provided rules
-              let calculatedWeeks = 0;
-              if (years >= 35) {
-                calculatedWeeks = 6;
-              } else if (years >= 25) {
-                calculatedWeeks = 5;
-              } else if (years >= 10) {
-                calculatedWeeks = 4;
-              } else if (years >= 3) {
-                calculatedWeeks = 3;
-              } else if (years >= 1) {
-                calculatedWeeks = 2;
-              }
-              setWeeksOfVacation(calculatedWeeks);
-              // Initialize vacation dates array with empty objects for each week
-              setVacationDates(Array.from({ length: calculatedWeeks }, () => ([{ startDate: '', endDate: '' }])));
-            }
-          }, [seniorityDate]);
+    const views = {
+      home: $('#view-home'),
+      employee: $('#view-employee'),
+      supervisor: $('#view-supervisor')
+    };
 
-          // Handle data fetching for supervisor page
-          React.useEffect(() => {
-            if (isAuthReady && db) { // Removed user and userRole check
-              const requestsCollectionRef = window.firebase.collection(db, `artifacts/${window.appId}/public/data/vacation_requests`);
-              const q = window.firebase.query(requestsCollectionRef);
+    function navigate(to) {
+      Object.values(views).forEach(hide);
+      show(views[to]);
+      if (to === 'supervisor') {
+        loadSupervisor();
+      }
+    }
 
-              const unsubscribe = window.firebase.onSnapshot(q, (snapshot) => {
-                const realRequests = snapshot.docs.map(doc => {
-                  const data = doc.data();
-                  return {
-                    id: doc.id,
-                    ...data,
-                    // Parse the JSON string back into a nested array
-                    vacationDates: data.vacationDates ? JSON.parse(data.vacationDates) : []
-                  };
-                });
+    function notify(msg, ms=3000) {
+      $('#notice-text').textContent = msg;
+      $('#notice').style.display = 'flex';
+      if (notify._t) clearTimeout(notify._t);
+      notify._t = setTimeout(() => $('#notice').style.display = 'none', ms);
+    }
+    $('#notice-close').addEventListener('click', () => $('#notice').style.display = 'none');
 
-                // Sort by seniority date (oldest first) for seniority-based allocation
-                const sortedRequests = realRequests.sort((a, b) => {
-                  const dateA = new Date(a.seniorityDate);
-                  const dateB = new Date(b.seniorityDate);
-                  return dateA - dateB;
-                });
+    /*********** Employee view wiring ***********/
+    const $name       = $('#emp-name');
+    const $seniority  = $('#emp-seniority');
+    const $years      = $('#stat-years');
+    const $weeks      = $('#stat-weeks');
+    const $wkIndex    = $('#wk-index');
+    const $wkTotal    = $('#wk-total');
+    const $optionsWrap= $('#options-wrap');
+    const $btnPrev    = $('#btn-prev');
+    const $btnNext    = $('#btn-next');
+    const $btnSubmit  = $('#btn-submit');
+    const $btnAddOpt  = $('#btn-add-option');
+    const $btnRemOpt  = $('#btn-remove-option');
 
-                setVacationRequests(sortedRequests);
-              }, (error) => {
-                console.error("Error fetching vacation requests:", error);
-                showMessage("Failed to load requests. Please try again.");
-              });
+    function fmtDateISOToMDY(iso) {
+      if (!iso) return '';
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return '';
+      const mm = String(d.getUTCMonth()+1).padStart(2,'0');
+      const dd = String(d.getUTCDate()).padStart(2,'0');
+      const yy = d.getUTCFullYear();
+      return `${mm}/${dd}/${yy}`;
+    }
 
-              return () => unsubscribe();
-            }
-          }, [isAuthReady, db, userRole, window.appId]);
+    function recomputeFromSeniority() {
+      const sd = $seniority.value || '';
+      if (!sd) { state.years = 0; state.weeks = 0; paintEmployeeStats(); return; }
+      const start = new Date(sd);
+      const today = new Date();
+      const diffYears = Math.floor((today - start) / (1000*3600*24*365.25));
+      state.years = Math.max(0, diffYears);
 
-          // Handle vacation submission
-          const handleSubmitRequest = async () => {
-            if (!name || !seniorityDate) {
-              showMessage("Please fill in your name and seniority date.");
-              return;
-            }
+      let w = 0;
+      if (state.years >= 35) w = 6;
+      else if (state.years >= 25) w = 5;
+      else if (state.years >= 10) w = 4;
+      else if (state.years >= 3)  w = 3;
+      else if (state.years >= 1)  w = 2;
 
-            const allDatesFilled = vacationDates.every(weekOptions =>
-              weekOptions.every(option => option.startDate && option.endDate)
-            );
-            if (!allDatesFilled) {
-              showMessage("Please fill in all requested vacation dates.");
-              return;
-            }
-            if (!db) {
-              showMessage("Database not ready. Please wait a moment.");
-              return;
-            }
+      state.weeks = w;
 
-            const requestsCollectionRef = window.firebase.collection(db, `artifacts/${window.appId}/public/data/vacation_requests`);
+      // ensure vacationDates length matches weeks
+      const cur = state.vacationDates || [];
+      const next = Array.from({length:w}, (_,i)=> cur[i] ? cur[i] : [{startDate:'', endDate:''}]);
+      state.vacationDates = next;
+      if (state.currentWeekIndex >= w) state.currentWeekIndex = Math.max(0, w-1);
 
-            try {
-              await window.firebase.addDoc(requestsCollectionRef, {
-                name,
-                seniorityDate,
-                // Stringify the nested array for storage
-                vacationDates: JSON.stringify(vacationDates),
-                yearsOfService,
-                status: 'pending',
-                submittedAt: window.firebase.serverTimestamp(),
-                userId: user.uid
-              });
-              setName('John Doe');
-              setSeniorityDate('2015-01-01');
-              setVacationDates([]);
-              setYearsOfService(0);
-              setWeeksOfVacation(0);
-              setCurrentWeekIndex(0);
-              showMessage("Vacation request submitted successfully!");
-            } catch (error) {
-              console.error("Error submitting request:", error);
-              showMessage("Failed to submit request. Please try again.");
-            }
-          };
+      paintEmployeeStats();
+      paintWeek();
+    }
 
-          const handleDateChange = (weekIndex, optionIndex, field, value) => {
-            const newVacationDates = [...vacationDates];
-            newVacationDates[weekIndex][optionIndex] = {
-              ...newVacationDates[weekIndex][optionIndex],
-              [field]: value
-            };
-            setVacationDates(newVacationDates);
-          };
+    function paintEmployeeStats() {
+      $years.textContent = state.years;
+      $weeks.textContent = state.weeks;
+      $wkIndex.textContent = (state.weeks===0 ? 0 : state.currentWeekIndex+1);
+      $wkTotal.textContent = state.weeks;
+      $btnPrev.disabled = (state.currentWeekIndex === 0);
+      hide($btnSubmit);
+      hide($btnNext);
+      if (state.weeks>0) {
+        if (state.currentWeekIndex < state.weeks - 1) show($btnNext);
+        else show($btnSubmit);
+      }
+    }
 
-          const addDateOption = (weekIndex) => {
-            const newVacationDates = [...vacationDates];
-            if (newVacationDates[weekIndex].length < 2) {
-              newVacationDates[weekIndex].push({ startDate: '', endDate: '' });
-              setVacationDates(newVacationDates);
-            }
-          };
+    function paintWeek() {
+      $optionsWrap.innerHTML = '';
+      if (state.weeks===0) return;
+      const arr = state.vacationDates[state.currentWeekIndex] || [{startDate:'', endDate:''}];
 
-          const removeDateOption = (weekIndex) => {
-            const newVacationDates = [...vacationDates];
-            newVacationDates[weekIndex].splice(1, 1);
-            setVacationDates(newVacationDates);
-          };
+      arr.forEach((opt, idx) => {
+        const wrap = document.createElement('div');
+        wrap.className = 'card';
+        wrap.style.padding = '12px';
+        wrap.style.margin = '8px 0';
 
-          // Handle vacation approval by supervisor
-          const handleApproveRequest = async (requestId) => {
-            if (!db) {
-              showMessage("Database not ready.");
-              return;
-            }
-            try {
-              const docRef = window.firebase.doc(db, `artifacts/${window.appId}/public/data/vacation_requests`, requestId);
-              await window.firebase.updateDoc(docRef, { status: 'approved', approvedAt: window.firebase.serverTimestamp() });
-              showMessage("Vacation approved successfully!");
-            } catch (error) {
-              console.error("Error approving vacation:", error);
-              showMessage("Failed to approve vacation. Please try again.");
-            }
-          };
+        const label = document.createElement('div');
+        label.className = 'muted';
+        label.textContent = `Option ${idx+1}`;
+        wrap.appendChild(label);
 
-          // Handle vacation rejection by supervisor
-          const handleRejectRequest = async (requestId) => {
-            if (!db) {
-              showMessage("Database not ready.");
-              return;
-            }
-            try {
-              const docRef = window.firebase.doc(db, `artifacts/${window.appId}/public/data/vacation_requests`, requestId);
-              await window.firebase.updateDoc(docRef, { status: 'rejected', rejectedAt: window.firebase.serverTimestamp() });
-              showMessage("Vacation rejected.");
-            } catch (error) {
-              console.error("Error rejecting vacation:", error);
-              showMessage("Failed to reject vacation. Please try again.");
-            }
-          };
+        const row = document.createElement('div');
+        row.className = 'row wrap';
+        const col1 = document.createElement('div'); col1.className='col';
+        const col2 = document.createElement('div'); col2.className='col';
 
-          const handleAllocateVacations = async () => {
-            if (!db) {
-              showMessage("Database not ready.");
-              return;
-            }
-            showMessage("Allocating pending requests based on seniority...", 60000);
+        const l1 = document.createElement('label'); l1.textContent='Start Date';
+        const i1 = document.createElement('input'); i1.type='date';
+        i1.min = '2026-01-01'; i1.max='2026-12-31'; i1.value = opt.startDate || '';
+        i1.addEventListener('change', e => {
+          state.vacationDates[state.currentWeekIndex][idx].startDate = e.target.value;
+        });
 
-            try {
-              const pendingRequests = vacationRequests.filter(req => req.status === 'pending');
-              const approvedRequests = [];
-              const rejectedRequests = [];
-              const allocatedDates = new Set();
+        const l2 = document.createElement('label'); l2.textContent='End Date';
+        const i2 = document.createElement('input'); i2.type='date';
+        i2.min = '2026-01-01'; i2.max='2026-12-31'; i2.value = opt.endDate || '';
+        i2.addEventListener('change', e => {
+          state.vacationDates[state.currentWeekIndex][idx].endDate = e.target.value;
+        });
 
-              const getDatesInRange = (startDate, endDate) => {
-                const dates = [];
-                const currentDate = new Date(startDate);
-                const stopDate = new Date(endDate);
-                while (currentDate <= stopDate) {
-                  dates.push(currentDate.toISOString().split('T')[0]);
-                  currentDate.setDate(currentDate.getDate() + 1);
-                }
-                return dates;
-              };
+        col1.append(l1,i1); col2.append(l2,i2);
+        row.append(col1,col2);
+        wrap.appendChild(row);
+        $optionsWrap.appendChild(wrap);
+      });
 
-              for (const req of pendingRequests) {
-                let isConflicting = false;
-                const vacationDates = req.vacationDates || [];
+      // option buttons visibility
+      const canAdd = (state.vacationDates[state.currentWeekIndex]?.length || 0) < 2;
+      const canRem = (state.vacationDates[state.currentWeekIndex]?.length || 0) > 1;
+      $btnAddOpt.disabled = !canAdd;
+      $btnRemOpt.disabled = !canRem;
+    }
 
-                for (const weekOptions of vacationDates) {
-                  const primaryOption = weekOptions[0];
-                  if (primaryOption) {
-                    const datesInOption = getDatesInRange(primaryOption.startDate, primaryOption.endDate);
-                    for (const date of datesInOption) {
-                      if (allocatedDates.has(date)) {
-                        isConflicting = true;
-                        break;
-                      }
-                    }
-                  }
-                  if (isConflicting) break;
-                }
+    function addOption() {
+      const arr = state.vacationDates[state.currentWeekIndex];
+      if (arr.length < 2) {
+        arr.push({startDate:'', endDate:''});
+        paintWeek();
+      }
+    }
+    function removeOption() {
+      const arr = state.vacationDates[state.currentWeekIndex];
+      if (arr.length > 1) {
+        arr.splice(1,1);
+        paintWeek();
+      }
+    }
 
-                if (isConflicting) {
-                  rejectedRequests.push(req);
-                } else {
-                  approvedRequests.push(req);
-                  for (const weekOptions of vacationDates) {
-                    const primaryOption = weekOptions[0];
-                    if (primaryOption) {
-                      const datesInOption = getDatesInRange(primaryOption.startDate, primaryOption.endDate);
-                      datesInOption.forEach(date => allocatedDates.add(date));
-                    }
-                  }
-                }
-              }
+    function allDatesFilled() {
+      return state.vacationDates.every(week => week.every(o => o.startDate && o.endDate));
+    }
 
-              const updatePromises = [];
-              approvedRequests.forEach(req => {
-                const docRef = window.firebase.doc(db, `artifacts/${window.appId}/public/data/vacation_requests`, req.id);
-                updatePromises.push(window.firebase.updateDoc(docRef, { status: 'approved', approvedAt: window.firebase.serverTimestamp() }));
-              });
-              rejectedRequests.forEach(req => {
-                const docRef = window.firebase.doc(db, `artifacts/${window.appId}/public/data/vacation_requests`, req.id);
-                updatePromises.push(window.firebase.updateDoc(docRef, { status: 'rejected', rejectedAt: window.firebase.serverTimestamp() }));
-              });
+    async function submitRequest() {
+      if (!$name.value || !$seniority.value) { notify("Please fill in your name and seniority date."); return; }
+      if (state.weeks === 0) { notify("You currently have 0 vacation weeks."); return; }
+      if (!allDatesFilled()) { notify("Please fill in all requested vacation dates."); return; }
 
-              await Promise.all(updatePromises);
-              showMessage(`Successfully allocated ${approvedRequests.length} vacation requests and rejected ${rejectedRequests.length} conflicting requests.`);
+      const payload = {
+        name: $name.value,
+        seniorityDate: $seniority.value,
+        vacationDates: JSON.stringify(state.vacationDates),
+        yearsOfService: state.years,
+        status: 'pending',
+        userId: state.backend.userId,
+        submittedAt: Date.now()
+      };
 
-            } catch (error) {
-              console.error("Error allocating all vacations:", error);
-              showMessage("Failed to allocate vacations. Please try again.");
-            }
-          };
+      try {
+        await backendAdd(payload);
+        // reset
+        state.name='John Doe'; state.seniorityDate='2015-01-01';
+        $name.value = state.name; $seniority.value = state.seniorityDate;
+        state.currentWeekIndex = 0;
+        recomputeFromSeniority();
+        notify("Vacation request submitted successfully!");
+      } catch(e) {
+        console.error(e);
+        notify("Failed to submit request. Please try again.");
+      }
+    }
 
-          const handleResetRequests = async () => {
-            if (!db) {
-              showMessage("Database not ready.");
-              return;
-            }
-            showMessage("Resetting all requests...", 60000); // Show a loading message
+    /*********** Supervisor view ***********/
+    const $tbody = $('#requests-tbody');
 
-            try {
-              const requestsCollectionRef = window.firebase.collection(db, `artifacts/${window.appId}/public/data/vacation_requests`);
-              const snapshot = await window.firebase.getDocsFromQuery(requestsCollectionRef);
-              
-              const updatePromises = snapshot.docs.map(docItem => {
-                const docRef = window.firebase.doc(db, `artifacts/${window.appId}/public/data/vacation_requests`, docItem.id);
-                return window.firebase.updateDoc(docRef, { status: 'pending' });
-              });
+    function paintSupervisor() {
+      const items = [...state.supervisor.items];
+      // oldest seniority first
+      items.sort((a,b)=> new Date(a.seniorityDate) - new Date(b.seniorityDate));
 
-              await Promise.all(updatePromises);
-              showMessage(`Successfully reset all ${snapshot.size} requests to pending.`);
-            } catch (error) {
-              console.error("Error resetting all vacations:", error);
-              showMessage("Failed to reset vacations. Please try again.");
-            }
-          };
-          
-          // Home Page Component
-          const HomePage = () => (
-            <div className="flex flex-col items-center justify-center p-6 bg-white rounded-lg shadow-md w-full max-w-xl">
-              <h1 className="text-3xl font-bold text-gray-800 mb-6 text-center">Vacation Planner</h1>
-              <div className="flex flex-col space-y-4 w-full">
-                <button
-                  onClick={() => setCurrentView('employee')}
-                  className="w-full py-2 px-3 rounded-md text-white font-semibold bg-[#0F2133] hover:bg-[#08121a] focus:outline-none focus:ring-2 focus:ring-[#2a4561] focus:ring-offset-2 transition-colors"
-                >
-                  Employee Vacation Request
-                </button>
-                <button
-                  onClick={() => setCurrentView('supervisor')}
-                  className="w-full py-2 px-3 rounded-md text-white font-semibold bg-[#0F2133] hover:bg-[#08121a] focus:outline-none focus:ring-2 focus:ring-[#2a4561] focus:ring-offset-2 transition-colors"
-                >
-                  Supervisor Dashboard
-                </button>
-              </div>
-            </div>
-          );
+      if (!items.length) {
+        $tbody.innerHTML = `<tr><td colspan="6" class="center muted">No vacation requests at this time.</td></tr>`;
+        return;
+      }
 
-          const EmployeePage = () => {
-            return (
-              <div className="flex flex-col items-center justify-center p-6 bg-white rounded-lg shadow-md w-full">
-                <h1 className="text-3xl font-bold text-gray-800 mb-6">Employee Vacation Request</h1>
-                <button 
-                  onClick={() => setCurrentView('home')}
-                  className="mb-4 text-blue-600 hover:underline text-sm font-medium"
-                >
-                  &larr; Back to Home
-                </button>
-                <div className="w-full space-y-4">
-                  <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-gray-700">Name</label>
-                    <input
-                      type="text"
-                      id="name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Your Name"
-                      className="mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="seniorityDate" className="block text-sm font-medium text-gray-700">Seniority Date</label>
-                    <input
-                      type="date"
-                      id="seniorityDate"
-                      value={seniorityDate}
-                      onChange={(e) => setSeniorityDate(e.target.value)}
-                      className="mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                  <div className="flex justify-between items-center bg-gray-100 p-4 rounded-md">
-                    <p className="text-sm font-medium text-gray-700">Years of Service: <span className="font-bold text-gray-900">{yearsOfService}</span></p>
-                    <p className="text-sm font-medium text-gray-700">Weeks of Vacation: <span className="font-bold text-gray-900">{weeksOfVacation}</span></p>
-                  </div>
-                  <div className="space-y-2 border p-3 rounded-md">
-                    <div className="flex justify-between items-center mb-4">
-                      <p className="block text-sm font-medium text-gray-700">Week {currentWeekIndex + 1} of {weeksOfVacation}</p>
-                      <div className="flex space-x-2">
-                        {vacationDates[currentWeekIndex]?.length < 2 && (
-                          <button
-                            onClick={() => addDateOption(currentWeekIndex)}
-                            className="text-white bg-[#0F2133] hover:bg-[#08121a] rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold leading-none"
-                          >
-                            +
-                          </button>
-                        )}
-                        {vacationDates[currentWeekIndex]?.length > 1 && (
-                          <button
-                            onClick={() => removeDateOption(currentWeekIndex)}
-                            className="text-white bg-red-500 hover:bg-red-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold leading-none"
-                          >
-                            -
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    {vacationDates[currentWeekIndex]?.map((option, optionIndex) => (
-                      <div key={optionIndex} className="space-y-2">
-                        <p className="block text-xs font-medium text-gray-700">Option {optionIndex + 1}</p>
-                        <div className="flex space-x-2">
-                          <div className="w-1/2">
-                            <label htmlFor={`week-${currentWeekIndex}-option-${optionIndex}-start`} className="block text-xs font-medium text-gray-500">Start Date</label>
-                            <input
-                              type="date"
-                              id={`week-${currentWeekIndex}-option-${optionIndex}-start`}
-                              value={option.startDate || ''}
-                              onChange={(e) => handleDateChange(currentWeekIndex, optionIndex, 'startDate', e.target.value)}
-                              min="2026-01-01"
-                              max="2026-12-31"
-                              className="mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            />
-                          </div>
-                          <div className="w-1/2">
-                            <label htmlFor={`week-${currentWeekIndex}-option-${optionIndex}-end`} className="block text-xs font-medium text-gray-500">End Date</label>
-                            <input
-                              type="date"
-                              id={`week-${currentWeekIndex}-option-${optionIndex}-end`}
-                              value={option.endDate || ''}
-                              onChange={(e) => handleDateChange(currentWeekIndex, optionIndex, 'endDate', e.target.value)}
-                              min="2026-01-01"
-                              max="2026-12-31"
-                              className="mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex justify-between mt-4">
-                    <button
-                      onClick={() => setCurrentWeekIndex(prev => prev - 1)}
-                      disabled={currentWeekIndex === 0}
-                      className={`py-2 px-4 rounded-md text-white font-semibold bg-gray-500 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 transition-colors ${currentWeekIndex === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      Previous
-                    </button>
-                    {currentWeekIndex < weeksOfVacation - 1 ? (
-                      <button
-                        onClick={() => setCurrentWeekIndex(prev => prev + 1)}
-                        className="py-2 px-4 rounded-md text-white font-semibold bg-[#0F2133] hover:bg-[#08121a] focus:outline-none focus:ring-2 focus:ring-[#2a4561] focus:ring-offset-2 transition-colors"
-                      >
-                        Next
-                      </button>
-                    ) : (
-                      <button
-                        onClick={handleSubmitRequest}
-                        className="py-2 px-4 rounded-md text-white font-semibold bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors"
-                      >
-                        Submit Request
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          };
+      $tbody.innerHTML = '';
+      items.forEach(req => {
+        const tr = document.createElement('tr');
+        const vdates = Array.isArray(req.vacationDates) ? req.vacationDates : [];
+        const datesHTML = vdates.map((week, i) => {
+          const lines = (Array.isArray(week) ? week : []).map((o, j) =>
+            `<div class="muted" style="font-size:12px">Option ${j+1}: ${fmtDateISOToMDY(o.startDate)} to ${fmtDateISOToMDY(o.endDate)}</div>`
+          ).join('');
+          return `<div style="margin-bottom:6px"><strong>Week ${i+1}:</strong><div>${lines || '<span class="muted">No dates</span>'}</div></div>`;
+        }).join('');
 
-          const SupervisorPage = () => {
-            return (
-              <div className="flex flex-col items-center p-6 bg-white rounded-lg shadow-md w-full">
-                <h1 className="text-3xl font-bold text-gray-800 mb-6">Supervisor Dashboard</h1>
-                <button 
-                  onClick={() => setCurrentView('home')}
-                  className="mb-4 text-blue-600 hover:underline text-sm font-medium"
-                >
-                  &larr; Back to Home
-                </button>
-                <div className="flex justify-between w-full mb-4">
-                  <button
-                    onClick={handleAllocateVacations}
-                    className="py-1 px-3 rounded-md text-white font-semibold bg-[#0F2133] hover:bg-[#08121a] focus:outline-none focus:ring-2 focus:ring-[#2a4561] focus:ring-offset-2 transition-colors"
-                  >
-                    Allocate Vacations
-                  </button>
-                  <button
-                    onClick={handleResetRequests}
-                    className="py-1 px-3 rounded-md text-white font-semibold bg-gray-500 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 transition-colors"
-                  >
-                    Reset All Requests
-                  </button>
-                </div>
-                <p className="text-sm text-gray-500 mb-6">Requests are sorted by seniority date (oldest first).</p>
-                <div className="w-full overflow-x-auto">
-                  {vacationRequests.length > 0 ? (
-                    <table className="min-w-full divide-y divide-gray-200 rounded-lg shadow-md">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Name
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Seniority Date
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Years of Service
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Requested Dates
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Status
-                          </th>
-                          <th scope="col" className="relative px-6 py-3">
-                            <span className="sr-only">Actions</span>
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {vacationRequests.map((request) => (
-                          <tr key={request.id}>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                              {request.name}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {formatDate(request.seniorityDate)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {request.yearsOfService}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {Array.isArray(request.vacationDates) && request.vacationDates.map((week, index) => (
-                                <div key={index} className="mb-2">
-                                  <p className="font-semibold text-gray-700">Week {index + 1}:</p>
-                                  {Array.isArray(week) && week.map((option, optionIndex) => (
-                                    <p key={optionIndex} className="text-xs text-gray-600">
-                                      Option {optionIndex + 1}: {formatDate(option.startDate)} to {formatDate(option.endDate)}
-                                    </p>
-                                  ))}
-                                </div>
-                              ))}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${request.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : request.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                {request.status.toUpperCase()}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                              {request.status === 'pending' && (
-                                <div className="flex space-x-2">
-                                  <button
-                                    onClick={() => handleApproveRequest(request.id)}
-                                    className="py-1 px-3 rounded-md text-white font-semibold bg-[#0F2133] hover:bg-[#08121a] focus:outline-none focus:ring-2 focus:ring-[#2a4561] focus:ring-offset-2 transition-colors"
-                                  >
-                                    Approve
-                                  </button>
-                                  <button
-                                    onClick={() => handleRejectRequest(request.id)}
-                                    className="py-1 px-3 rounded-md text-white font-semibold bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
-                                  >
-                                    Reject
-                                  </button>
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  ) : (
-                    <p className="text-center text-gray-500">No vacation requests at this time.</p>
-                  )}
-                </div>
-              </div>
-            );
-          };
+        tr.innerHTML = `
+          <td>${req.name}</td>
+          <td class="muted">${fmtDateISOToMDY(req.seniorityDate)}</td>
+          <td class="muted">${req.yearsOfService ?? ''}</td>
+          <td>${datesHTML || '<span class="muted">—</span>'}</td>
+          <td><span class="pill ${req.status?.toUpperCase() || 'PENDING'}">${(req.status||'pending').toUpperCase()}</span></td>
+          <td>${req.status==='pending' ? `
+              <div class="toolbar">
+                <button data-act="approve" data-id="${req.id}">Approve</button>
+                <button class="bad" data-act="reject" data-id="${req.id}">Reject</button>
+              </div>` : '' }
+          </td>
+        `;
+        $tbody.appendChild(tr);
+      });
+    }
 
-          return (
-            <div className="flex flex-col items-center justify-center min-h-screen p-4 md:p-8 bg-gray-100 font-inter">
-              <div className="w-full max-w-screen-lg space-y-6">
-                {isAuthReady ? (
-                  (() => {
-                    switch (currentView) {
-                      case 'home':
-                        return <HomePage />;
-                      case 'employee':
-                        return <EmployeePage />;
-                      case 'supervisor':
-                        return <SupervisorPage />;
-                      default:
-                        return <HomePage />;
-                    }
-                  })()
-                ) : (
-                  <div className="flex flex-col items-center justify-center p-6 bg-white rounded-lg shadow-md w-full">
-                    <h1 className="text-3xl font-bold text-gray-800 animate-pulse">Loading...</h1>
-                    <p className="text-gray-500 mt-2">Connecting to the system.</p>
-                  </div>
-                )}
-
-                {isMessageVisible && (
-                  <div className="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 z-50">
-                    <div ref={modalRef} className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full text-center space-y-4">
-                      <p className="text-gray-800 font-medium">{message}</p>
-                      <button
-                        onClick={() => setIsMessageVisible(false)}
-                        className="w-full py-2 px-4 rounded-md text-white font-semibold bg-[#0F2133] hover:bg-[#08121a]"
-                      >
-                        Close
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
+    $tbody.addEventListener('click', async (e) => {
+      const btn = e.target.closest('button[data-act]');
+      if (!btn) return;
+      const id = btn.getAttribute('data-id');
+      const act = btn.getAttribute('data-act');
+      try {
+        if (act === 'approve') {
+          await backendUpdate(id, { status:'approved', approvedAt: Date.now() });
+          notify("Vacation approved successfully!");
+        } else if (act === 'reject') {
+          await backendUpdate(id, { status:'rejected', rejectedAt: Date.now() });
+          notify("Vacation rejected.");
         }
+      } catch(err) {
+        console.error(err);
+        notify("Failed to update request.");
+      }
+    });
 
-        // Render the app after Firebase is initialized
-        const rootElement = document.getElementById('root');
-        if (rootElement) {
-          ReactDOM.render(React.createElement(App), rootElement);
+    function getDatesInRange(startISO, endISO) {
+      const out = [];
+      const d = new Date(startISO);
+      const stop = new Date(endISO);
+      if (Number.isNaN(d) || Number.isNaN(stop)) return out;
+      while (d <= stop) {
+        out.push(d.toISOString().slice(0,10));
+        d.setDate(d.getDate()+1);
+      }
+      return out;
+    }
+
+    async function allocateAll() {
+      notify("Allocating pending requests based on seniority...", 2000);
+      const items = [...state.supervisor.items].filter(r => r.status==='pending')
+        .sort((a,b)=> new Date(a.seniorityDate)-new Date(b.seniorityDate));
+
+      const allocated = new Set();
+      const approved = [];
+      const rejected = [];
+
+      for (const req of items) {
+        let conflict = false;
+        const vds = req.vacationDates || [];
+        for (const week of vds) {
+          const opt = Array.isArray(week) && week[0];
+          if (!opt) continue;
+          for (const d of getDatesInRange(opt.startDate, opt.endDate)) {
+            if (allocated.has(d)) { conflict = true; break; }
+          }
+          if (conflict) break;
         }
-    </script>
+        if (conflict) rejected.push(req);
+        else {
+          approved.push(req);
+          for (const week of vds) {
+            const opt = Array.isArray(week) && week[0];
+            if (!opt) continue;
+            for (const d of getDatesInRange(opt.startDate, opt.endDate)) allocated.add(d);
+          }
+        }
+      }
+
+      await Promise.all([
+        ...approved.map(r => backendUpdate(r.id, {status:'approved', approvedAt: Date.now()})),
+        ...rejected.map(r => backendUpdate(r.id, {status:'rejected', rejectedAt: Date.now()})),
+      ]);
+
+      notify(`Allocated ${approved.length} request(s), rejected ${rejected.length}.`);
+    }
+
+    async function resetAll() {
+      notify("Resetting all requests...", 1500);
+      const updates = state.supervisor.items.map(r => backendUpdate(r.id, { status:'pending' }));
+      await Promise.all(updates);
+      notify(`Reset ${updates.length} request(s) to pending.`);
+    }
+
+    /*********** Backend (memory or Firestore) ***********/
+    const memory = {
+      _data: [],
+      _autoId() { return Math.random().toString(36).slice(2,10); },
+      async list() { return JSON.parse(JSON.stringify(this._data)); },
+      async add(doc) { const id = this._autoId(); this._data.push({...doc, id, vacationDates: JSON.parse(doc.vacationDates)}); return id; },
+      async update(id, patch) { const i = this._data.findIndex(x=>x.id===id); if (i>=0) { this._data[i] = {...this._data[i], ...patch}; } },
+      ensureSeeded() {
+        if (this._data.length) return;
+        const seed = [
+          {name:'Jane Doe', seniorityDate:'2018-05-15', vacationDates:[[{startDate:'2026-07-01',endDate:'2026-07-07'}],[{startDate:'2026-08-10',endDate:'2026-08-17'}]], yearsOfService:7, status:'pending'},
+          {name:'Robert Brown', seniorityDate:'2020-03-20', vacationDates:[[{startDate:'2026-09-05',endDate:'2026-09-12'}]], yearsOfService:5, status:'pending'},
+          {name:'Emily White', seniorityDate:'2012-01-10', vacationDates:[[{startDate:'2026-06-01',endDate:'2026-06-07'}],[{startDate:'2026-06-15',endDate:'2026-06-22'}],[{startDate:'2026-07-01',endDate:'2026-07-07'}]], yearsOfService:13, status:'approved'},
+          {name:'Michael Green', seniorityDate:'2024-02-28', vacationDates:[[{startDate:'2026-11-01',endDate:'2026-11-08'}]], yearsOfService:1, status:'pending'},
+          {name:'Olivia Jones', seniorityDate:'2019-09-01', vacationDates:[[{startDate:'2026-09-20',endDate:'2026-09-27'}],[{startDate:'2026-10-05',endDate:'2026-10-12'}]], yearsOfService:6, status:'rejected'},
+        ];
+        seed.forEach((s)=> this._data.push({...s, id: this._autoId()}));
+      }
+    };
+
+    async function initBackend() {
+      // If Firebase was loaded in the module block, it will place APIs on window._fb
+      if (window._fb && window.firebaseConfig) {
+        try {
+          const app = window._fb.initializeApp(window.firebaseConfig);
+          const auth = window._fb.getAuth(app);
+          state.backend.db = window._fb.getFirestore(app);
+
+          await new Promise((resolve) => {
+            window._fb.onAuthStateChanged(auth, async (user) => {
+              if (user) { state.backend.userId = user.uid; state.backend.mode='firestore'; state.backend.ready = true; resolve(); }
+              else {
+                try {
+                  if (window.initialAuthToken) await window._fb.signInWithCustomToken(auth, window.initialAuthToken);
+                  else await window._fb.signInAnonymously(auth);
+                } catch(e) { console.warn("Auth failed, falling back to memory.", e); state.backend.mode='memory'; state.backend.ready = true; resolve(); }
+              }
+            });
+          });
+
+          // seed collection if empty (once)
+          try {
+            const colRef = window._fb.collection(state.backend.db, `artifacts/${state.backend.appId}/public/data/vacation_requests`);
+            const snap = await window._fb.getDocs(colRef);
+            if (snap.empty) {
+              const samples = memory._data.length ? memory._data : (memory.ensureSeeded(), memory._data);
+              for (const s of samples) {
+                await window._fb.addDoc(colRef, {
+                  name: s.name,
+                  seniorityDate: s.seniorityDate,
+                  vacationDates: JSON.stringify(s.vacationDates),
+                  yearsOfService: s.yearsOfService,
+                  status: s.status,
+                  submittedAt: window._fb.serverTimestamp(),
+                  userId: state.backend.userId
+                });
+              }
+            }
+          } catch(e) {
+            // ignore seeding failure
+          }
+          return;
+        } catch(e) {
+          console.warn("Firebase init error; using memory.", e);
+        }
+      }
+      state.backend.mode = 'memory';
+      state.backend.ready = true;
+      memory.ensureSeeded();
+    }
+
+    async function backendList() {
+      if (state.backend.mode === 'firestore') {
+        const colRef = window._fb.collection(state.backend.db, `artifacts/${state.backend.appId}/public/data/vacation_requests`);
+        const q = window._fb.query(colRef);
+        const out = [];
+        // Single read (we avoid live onSnapshot to keep it simple)
+        const snap = await window._fb.getDocs(q);
+        snap.forEach(doc => {
+          const d = doc.data();
+          out.push({
+            id: doc.id,
+            ...d,
+            vacationDates: d.vacationDates ? JSON.parse(d.vacationDates) : []
+          });
+        });
+        return out;
+      } else {
+        return memory.list();
+      }
+    }
+
+    async function backendAdd(doc) {
+      if (state.backend.mode === 'firestore') {
+        const colRef = window._fb.collection(state.backend.db, `artifacts/${state.backend.appId}/public/data/vacation_requests`);
+        await window._fb.addDoc(colRef, doc);
+      } else {
+        await memory.add(doc);
+      }
+      await refreshSupervisor();
+    }
+
+    async function backendUpdate(id, patch) {
+      if (state.backend.mode === 'firestore') {
+        const ref = window._fb.doc(state.backend.db, `artifacts/${state.backend.appId}/public/data/vacation_requests`, id);
+        await window._fb.updateDoc(ref, patch);
+      } else {
+        await memory.update(id, patch);
+      }
+      await refreshSupervisor();
+    }
+
+    async function refreshSupervisor() {
+      state.supervisor.items = await backendList();
+      paintSupervisor();
+    }
+
+    async function loadSupervisor() {
+      if (!state.backend.ready) return;
+      await refreshSupervisor();
+    }
+
+    /*********** Events ***********/
+    // Navigation
+    $('#go-employee').addEventListener('click', () => navigate('employee'));
+    $('#go-supervisor').addEventListener('click', () => navigate('supervisor'));
+    $('#back-from-employee').addEventListener('click', () => navigate('home'));
+    $('#back-from-supervisor').addEventListener('click', () => navigate('home'));
+
+    // Employee inputs
+    $name.value = state.name;
+    $seniority.value = state.seniorityDate;
+    $name.addEventListener('input', e => state.name = e.target.value);
+    $seniority.addEventListener('change', recomputeFromSeniority);
+
+    // Week navigation
+    $btnPrev.addEventListener('click', () => {
+      if (state.currentWeekIndex>0) { state.currentWeekIndex--; paintEmployeeStats(); paintWeek(); }
+    });
+    $btnNext.addEventListener('click', () => {
+      if (state.currentWeekIndex < state.weeks-1) { state.currentWeekIndex++; paintEmployeeStats(); paintWeek(); }
+    });
+    $btnSubmit.addEventListener('click', submitRequest);
+    $btnAddOpt.addEventListener('click', addOption);
+    $btnRemOpt.addEventListener('click', removeOption);
+
+    // Supervisor actions
+    $('#btn-allocate').addEventListener('click', allocateAll);
+    $('#btn-reset').addEventListener('click', resetAll);
+
+    // Boot
+    (async function boot(){
+      await initBackend();
+      // initialize employee computed fields & UI
+      recomputeFromSeniority();
+    })();
+  </script>
 </body>
 </html>

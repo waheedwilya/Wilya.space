@@ -6,7 +6,7 @@
   <title>Vacation Planner (Vanilla JS • Phone Mock)</title>
   <style>
     :root {
-      --ink:#1f2937; --muted:#6b7280; --bg:#f3f4f6; --card:#ffffff;
+      --ink:#1f2937; --muted:#6b7280; --bg:#f3f4c6; --card:#ffffff;
       --brand:#0F2133; --brand-d:#08121a; --ok:#16a34a; --warn:#ca8a04; --bad:#dc2626;
     }
     * { box-sizing: border-box; }
@@ -38,9 +38,62 @@
     thead th { font-size:12px; letter-spacing:.06em; color:#6b7280; text-transform:uppercase; }
     .muted { color:var(--muted); }
     .statbar { display:flex; justify-content:space-between; background:#f8fafc; padding:10px 12px; border-radius:10px; }
-    .chip-btn { width:28px; height:28px; border-radius:999px; display:grid; place-items:center; font-weight:800; }
+    .chip-btn { width:28px; height:28px; border-radius:999px; display:flex; justify-content:center; align-items:center; font-weight:800; }
     .center { text-align:center; }
     .hidden { display:none !important; }
+
+    /* Calendar styles */
+    .calendar-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        background: #fff;
+    }
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      margin-bottom: 12px;
+    }
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+      text-align: center;
+      width: 100%;
+    }
+    .day-name { font-size: 12px; color: var(--muted); }
+    .day {
+      padding: 8px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.2s;
+    }
+    .day:hover:not(.empty):not(.in-range):not(.selected) { background-color: #f1f5f9; }
+    .day.empty { visibility: hidden; }
+    .day.selected {
+      background-color: var(--brand-d);
+      color: white;
+      font-weight: 600;
+    }
+    .day.in-range {
+      background-color: rgba(15, 33, 51, 0.1); /* light brand color */
+      border-radius: 0;
+    }
+    .day.in-range.start-of-range {
+      border-top-left-radius: 8px;
+      border-bottom-left-radius: 8px;
+    }
+    .day.in-range.end-of-range {
+      border-top-right-radius: 8px;
+      border-bottom-right-radius: 8px;
+    }
 
     /* ------------------ PHONE MOCK ------------------ */
     .phone-shell { display:flex; justify-content:center; }
@@ -59,6 +112,7 @@
     .appbar button { background:transparent; color:white; padding:6px 8px; border-radius:8px; }
     .phone-content { flex:1; overflow-y:auto; padding:16px; }
 
+
     /* Make content look mobile-first inside the phone */
     .phone-content .row { flex-direction:column; align-items:stretch; }
     .phone-content .col { min-width: unset; }
@@ -75,11 +129,13 @@
       <p class="muted" style="margin-top:12px">This demo wraps the Employee page inside a phone frame to preview the mobile UX.</p>
     </div>
 
+
     <!-- Employee in a Phone Mock -->
     <div class="card hidden" id="view-employee">
       <div class="toolbar" style="margin-bottom:12px">
         <button class="ghost" id="back-from-employee">&larr; Back to Home</button>
       </div>
+
 
       <div class="phone-shell">
         <div class="phone-body">
@@ -101,10 +157,12 @@
                 </div>
               </div>
 
+
               <div class="statbar" style="margin-top:12px">
                 <div>Years of Service: <strong id="stat-years">0</strong></div>
                 <div>Weeks of Vacation: <strong id="stat-weeks">0</strong></div>
               </div>
+
 
               <h2>Request Weeks</h2>
               <div class="row" style="justify-content:space-between; align-items:center">
@@ -115,7 +173,9 @@
                 </div>
               </div>
 
+
               <div id="options-wrap" style="margin-top:8px"></div>
+
 
               <div class="toolbar" style="justify-content:space-between; margin-top:16px">
                 <button id="btn-prev" class="secondary">Previous</button>
@@ -130,12 +190,21 @@
       </div> <!-- /phone-shell -->
     </div>
 
+    <!-- Confirmation Page -->
+    <div class="card hidden" id="view-confirmation" style="text-align:center;">
+        <h1>Request Submitted!</h1>
+        <p class="muted">Your vacation request has been successfully submitted for review.</p>
+        <button id="back-from-confirmation">Return to Home</button>
+    </div>
+
+
     <!-- Supervisor -->
     <div class="card hidden" id="view-supervisor">
       <div class="toolbar" style="margin-bottom:12px">
         <button class="ghost" id="back-from-supervisor">&larr; Back to Home</button>
       </div>
       <h1>Supervisor Dashboard</h1>
+
 
       <div class="toolbar" style="justify-content:space-between; margin-bottom:8px">
         <div class="toolbar">
@@ -144,6 +213,7 @@
         </div>
         <span class="muted">Sorted by seniority (oldest first)</span>
       </div>
+
 
       <div class="card" style="padding:0">
         <table>
@@ -165,6 +235,7 @@
     </div>
   </div>
 
+
   <!-- Message Modal -->
   <div class="notice hidden" id="notice" aria-live="polite">
     <div class="panel card" style="max-width:420px; margin:0 16px;">
@@ -173,9 +244,10 @@
     </div>
   </div>
 
+
   <!-- OPTIONAL Firebase (works if you already expose window.firebaseConfig, window.appId, window.initialAuthToken) -->
   <script type="module">
-    const hasFirebaseConfig = typeof window.firebaseConfig !== 'undefined' && window.firebaseConfig && Object.keys(window.firebaseConfig).length > 0;
+    const hasFirebaseConfig = typeof __firebase_config !== 'undefined' && __firebase_config && Object.keys(JSON.parse(__firebase_config)).length > 0;
     if (hasFirebaseConfig) {
       const { initializeApp } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
       const { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
@@ -184,28 +256,35 @@
     }
   </script>
 
+
   <!-- Main App -->
   <script>
     const state = {
       name: 'John Doe',
-      seniorityDate: '2015-01-01',
+      seniorityDate: '2024-01-01',
       years: 0,
       weeks: 0,
       currentWeekIndex: 0,
       vacationDates: [],
-      backend: { mode: 'memory', userId: 'local-user', ready: false, db: null, appId: window.appId || 'default-app-id' },
+      backend: { mode: 'memory', userId: 'local-user', ready: false, db: null, appId: 'default-app-id' },
       supervisor: { items: [] }
     };
+
+    console.log("Setting firebase log level is not possible in this environment. It will be ignored.");
+
 
     const $ = sel => document.querySelector(sel);
     const show = el => el.classList.remove('hidden');
     const hide = el => el.classList.add('hidden');
 
-    const views = { home: $('#view-home'), employee: $('#view-employee'), supervisor: $('#view-supervisor') };
+
+    const views = { home: $('#view-home'), employee: $('#view-employee'), supervisor: $('#view-supervisor'), confirmation: $('#view-confirmation') };
     function navigate(to){ Object.values(views).forEach(hide); show(views[to]); if (to==='supervisor') loadSupervisor(); }
+
 
     function notify(msg, ms=3000){ $('#notice-text').textContent = msg; show($('#notice')); clearTimeout(notify._t); notify._t = setTimeout(()=>hide($('#notice')), ms); }
     $('#notice-close').addEventListener('click', ()=> hide($('#notice')));
+
 
     // Employee refs
     const $name = $('#emp-name');
@@ -221,7 +300,9 @@
     const $btnAddOpt = $('#btn-add-option');
     const $btnRemOpt = $('#btn-remove-option');
 
+
     function fmtDateISOToMDY(iso){ if (!iso) return ''; const d = new Date(iso); if (Number.isNaN(d)) return ''; const mm=String(d.getUTCMonth()+1).padStart(2,'0'); const dd=String(d.getUTCDate()).padStart(2,'0'); const yy=d.getUTCFullYear(); return `${mm}/${dd}/${yy}`; }
+
 
     function recomputeFromSeniority(){
       const sd = $seniority.value || ''; if (!sd){ state.years=0; state.weeks=0; paintEmployeeStats(); return; }
@@ -229,10 +310,17 @@
       state.years = Math.max(0, Math.floor((today - start)/(1000*3600*24*365.25)));
       let w=0; if (state.years>=35) w=6; else if (state.years>=25) w=5; else if (state.years>=10) w=4; else if (state.years>=3) w=3; else if (state.years>=1) w=2;
       state.weeks = w;
-      const cur = state.vacationDates||[]; state.vacationDates = Array.from({length:w}, (_,i)=> cur[i]?cur[i]:[{startDate:'',endDate:''}]);
+      // Initialize vacationDates with a status for each week
+      const cur = state.vacationDates||[]; state.vacationDates = Array.from({length:w}, (_,i)=> cur[i]?cur[i]:[{startDate:'',endDate:'', status:'pending'}]);
       if (state.currentWeekIndex>=w) state.currentWeekIndex = Math.max(0, w-1);
-      paintEmployeeStats(); paintWeek();
+      
+      // Initialize currentMonth to January 2026
+      state.currentMonth = 0;
+
+      paintEmployeeStats(); 
+      paintWeek();
     }
+
 
     function paintEmployeeStats(){
       $years.textContent = state.years; $weeks.textContent = state.weeks; $wkIndex.textContent = (state.weeks===0?0:state.currentWeekIndex+1); $wkTotal.textContent = state.weeks;
@@ -241,36 +329,119 @@
       if (state.weeks>0){ if (state.currentWeekIndex < state.weeks-1) show($btnNext); else show($btnSubmit); }
     }
 
+
     function paintWeek(){
       $optionsWrap.innerHTML = ''; if (state.weeks===0) return;
-      const arr = state.vacationDates[state.currentWeekIndex] || [{startDate:'',endDate:''}];
-      arr.forEach((opt, idx)=>{
-        const wrap = document.createElement('div'); wrap.className='card'; wrap.style.padding='12px'; wrap.style.margin='8px 0';
-        const label = document.createElement('div'); label.className='muted'; label.textContent=`Option ${idx+1}`; wrap.appendChild(label);
-        const row = document.createElement('div'); row.className='row wrap';
-        const col1 = document.createElement('div'); col1.className='col';
-        const col2 = document.createElement('div'); col2.className='col';
-        const l1 = document.createElement('label'); l1.textContent='Start Date';
-        const i1 = document.createElement('input'); i1.type='date'; i1.min='2026-01-01'; i1.max='2026-12-31'; i1.value=opt.startDate||''; i1.addEventListener('change', e=>{ state.vacationDates[state.currentWeekIndex][idx].startDate = e.target.value; });
-        const l2 = document.createElement('label'); l2.textContent='End Date';
-        const i2 = document.createElement('input'); i2.type='date'; i2.min='2026-01-01'; i2.max='2026-12-31'; i2.value=opt.endDate||''; i2.addEventListener('change', e=>{ state.vacationDates[state.currentWeekIndex][idx].endDate = e.target.value; });
-        col1.append(l1,i1); col2.append(l2,i2); row.append(col1,col2); wrap.appendChild(row); $optionsWrap.appendChild(wrap);
+      
+      const currentWeekOptions = state.vacationDates[state.currentWeekIndex];
+      if (!currentWeekOptions || currentWeekOptions.length === 0) return;
+      
+      const option = currentWeekOptions[0];
+      const selectedDates = {
+        start: option.startDate ? new Date(option.startDate + 'T00:00:00') : null,
+        end: option.endDate ? new Date(option.endDate + 'T00:00:00') : null
+      };
+
+      const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+      const dayNames = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+      const currentYear = 2026;
+      
+      const firstDayOfMonth = new Date(currentYear, state.currentMonth, 1);
+      const startDayOfWeek = firstDayOfMonth.getDay();
+      const daysInMonth = new Date(currentYear, state.currentMonth + 1, 0).getDate();
+      
+      let daysHtml = dayNames.map(d => `<div class="day-name">${d}</div>`).join('');
+      for (let i = 0; i < startDayOfWeek; i++) {
+        daysHtml += '<div class="day empty"></div>';
+      }
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(currentYear, state.currentMonth, day);
+        let classList = 'day';
+        if (selectedDates.start && date >= selectedDates.start && date <= selectedDates.end) {
+          classList += ' in-range';
+          if (date.getTime() === selectedDates.start.getTime()) classList += ' selected start-of-range';
+          if (date.getTime() === selectedDates.end.getTime()) classList += ' selected end-of-range';
+        }
+        if (selectedDates.start && date.getTime() === selectedDates.start.getTime()) classList += ' selected';
+        if (selectedDates.end && date.getTime() === selectedDates.end.getTime()) classList += ' selected';
+        
+        daysHtml += `<div class="${classList}" data-date="${date.toISOString().slice(0,10)}">${day}</div>`;
+      }
+      
+      const calendarContainer = document.createElement('div');
+      calendarContainer.className = 'calendar-container';
+      calendarContainer.innerHTML = `
+        <div class="calendar-header">
+            <button id="prev-month">&larr; Prev</button>
+            <div style="font-weight: 600;">${monthNames[state.currentMonth]} ${currentYear}</div>
+            <button id="next-month">Next &rarr;</button>
+        </div>
+        <div class="calendar-grid">${daysHtml}</div>
+      `;
+      $optionsWrap.appendChild(calendarContainer);
+      
+      $('#prev-month').addEventListener('click', () => {
+          state.currentMonth = (state.currentMonth - 1 + 12) % 12;
+          paintWeek();
       });
+      
+      $('#next-month').addEventListener('click', () => {
+          state.currentMonth = (state.currentMonth + 1) % 12;
+          paintWeek();
+      });
+
+      $optionsWrap.querySelectorAll('.day').forEach(dayEl => {
+        dayEl.addEventListener('click', e => {
+          const dateStr = e.target.dataset.date;
+          if (!dateStr) return;
+          const date = new Date(dateStr + 'T00:00:00');
+
+          if (!option.startDate) {
+            option.startDate = dateStr;
+            option.endDate = '';
+          } else if (!option.endDate) {
+            if (date < new Date(option.startDate + 'T00:00:00')) {
+              option.endDate = option.startDate;
+              option.startDate = dateStr;
+            } else {
+              option.endDate = dateStr;
+            }
+          } else {
+            option.startDate = dateStr;
+            option.endDate = '';
+          }
+          paintWeek();
+        });
+      });
+
       const len = (state.vacationDates[state.currentWeekIndex]?.length||0);
       $btnAddOpt.disabled = !(len < 2); $btnRemOpt.disabled = !(len > 1);
     }
+
 
     function addOption(){ const arr = state.vacationDates[state.currentWeekIndex]; if (arr.length<2){ arr.push({startDate:'',endDate:''}); paintWeek(); } }
     function removeOption(){ const arr = state.vacationDates[state.currentWeekIndex]; if (arr.length>1){ arr.splice(1,1); paintWeek(); } }
     function allDatesFilled(){ return state.vacationDates.every(week => week.every(o=>o.startDate && o.endDate)); }
 
+
     async function submitRequest(){
       if (!$name.value || !$seniority.value) return notify("Please fill in your name and seniority date.");
       if (state.weeks===0) return notify("You currently have 0 vacation weeks.");
       if (!allDatesFilled()) return notify("Please fill in all requested vacation dates.");
-      const payload = { name:$name.value, seniorityDate:$seniority.value, vacationDates: JSON.stringify(state.vacationDates), yearsOfService: state.years, status:'pending', userId: state.backend.userId, submittedAt: Date.now() };
-      try { await backendAdd(payload); $name.value='John Doe'; $seniority.value='2015-01-01'; state.currentWeekIndex=0; recomputeFromSeniority(); notify("Vacation request submitted successfully!"); } catch(e){ console.error(e); notify("Failed to submit request. Please try again."); }
+      if (!state.backend.ready) {
+        console.log('Backend not ready, waiting for initialization...');
+        await initBackend();
+      }
+      const payload = { name:$name.value, seniorityDate:$seniority.value, vacationDates: state.vacationDates, yearsOfService: state.years, status:'pending', userId: state.backend.userId, submittedAt: Date.now() };
+      try { 
+        await backendAdd(payload); 
+        state.currentWeekIndex = 0; // Reset week index
+        recomputeFromSeniority(); // Re-initialize state based on form values
+        navigate('confirmation'); 
+      } catch(e){ console.error(e); notify("Failed to submit request. Please try again."); }
     }
+
 
     // Supervisor
     const $tbody = $('#requests-tbody');
@@ -281,76 +452,203 @@
       items.forEach(req=>{
         const vdates = Array.isArray(req.vacationDates)?req.vacationDates:[];
         const datesHTML = vdates.map((week,i)=>{
+          const status = (Array.isArray(week) && week[0]?.status) || 'pending';
           const lines = (Array.isArray(week)?week:[]).map((o,j)=>`<div class="muted" style="font-size:12px">Option ${j+1}: ${fmtDateISOToMDY(o.startDate)} to ${fmtDateISOToMDY(o.endDate)}</div>`).join('');
-          return `<div style="margin-bottom:6px"><strong>Week ${i+1}:</strong><div>${lines||'<span class=\"muted\">No dates</span>'}</div></div>`;
+          return `
+            <div style="margin-bottom:6px">
+              <strong>Week ${i+1}:</strong>
+              <div>${lines||'<span class=\"muted\">No dates</span>'}</div>
+              <div class="toolbar" style="margin-top:4px">
+                <span class="pill ${status.toUpperCase()}">${status.toUpperCase()}</span>
+                ${status === 'pending' ? `
+                  <button data-id="${req.id}" data-week-index="${i}" data-act="approve-week">Approve</button>
+                  <button class="bad" data-id="${req.id}" data-week-index="${i}" data-act="reject-week">Reject</button>
+                ` : ''}
+              </div>
+            </div>`;
         }).join('');
+
+        const requestStatus = req.status || 'pending';
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${req.name}</td>
           <td class="muted">${fmtDateISOToMDY(req.seniorityDate)}</td>
           <td class="muted">${req.yearsOfService ?? ''}</td>
           <td>${datesHTML || '<span class="muted">—</span>'}</td>
-          <td><span class="pill ${(req.status||'pending').toUpperCase()}">${(req.status||'pending').toUpperCase()}</span></td>
-          <td>${req.status==='pending'?`<div class="toolbar"><button data-act="approve" data-id="${req.id}">Approve</button><button class="bad" data-act="reject" data-id="${req.id}">Reject</button></div>`:''}</td>`;
+          <td><span class="pill ${requestStatus.toUpperCase()}">${requestStatus.toUpperCase()}</span></td>
+          <td>
+            ${requestStatus === 'pending' ? `<div class="toolbar"><button data-act="approve" data-id="${req.id}">Approve All</button><button class="bad" data-act="reject" data-id="${req.id}">Reject All</button></div>` : ''}
+          </td>`;
         $tbody.appendChild(tr);
       });
     }
 
+
     $tbody.addEventListener('click', async e=>{
-      const btn = e.target.closest('button[data-act]'); if (!btn) return; const id=btn.getAttribute('data-id'); const act=btn.getAttribute('data-act');
-      try{ if (act==='approve'){ await backendUpdate(id,{status:'approved',approvedAt:Date.now()}); notify('Vacation approved successfully!'); } else if (act==='reject'){ await backendUpdate(id,{status:'rejected',rejectedAt:Date.now()}); notify('Vacation rejected.'); } }
+      const btn = e.target.closest('button[data-act]'); if (!btn) return;
+      const id = btn.getAttribute('data-id');
+      const act = btn.getAttribute('data-act');
+      const weekIndex = btn.getAttribute('data-week-index');
+
+      // Find the request in the current state
+      const request = state.supervisor.items.find(req => req.id === id);
+      if (!request) return;
+
+      try {
+        if (act === 'approve-week' || act === 'reject-week') {
+          // Update status for a specific week
+          const newStatus = act === 'approve-week' ? 'approved' : 'rejected';
+          request.vacationDates[weekIndex][0].status = newStatus;
+
+          // Check if all weeks are resolved to update the main status
+          const allResolved = request.vacationDates.every(week => week[0]?.status !== 'pending');
+          const allApproved = request.vacationDates.every(week => week[0]?.status === 'approved');
+          const newRequestStatus = allResolved ? (allApproved ? 'approved' : 'rejected') : 'pending';
+
+          await backendUpdate(id, {
+            vacationDates: request.vacationDates,
+            status: newRequestStatus,
+            updatedAt: Date.now()
+          });
+
+          notify(`Vacation week ${parseInt(weekIndex) + 1} updated successfully!`);
+
+        } else if (act === 'approve') {
+          await backendUpdate(id, { status: 'approved', approvedAt: Date.now() });
+          notify('Vacation approved successfully!');
+        } else if (act === 'reject') {
+          await backendUpdate(id, { status: 'rejected', rejectedAt: Date.now() });
+          notify('Vacation rejected.');
+        }
+      }
       catch(err){ console.error(err); notify('Failed to update request.'); }
     });
 
+
     function getDatesInRange(a,b){ const out=[]; const d=new Date(a); const stop=new Date(b); if (Number.isNaN(d)||Number.isNaN(stop)) return out; while(d<=stop){ out.push(d.toISOString().slice(0,10)); d.setDate(d.getDate()+1);} return out; }
     async function allocateAll(){
+      if (!state.backend.ready) {
+        console.log('Backend not ready, waiting for initialization...');
+        await initBackend();
+      }
       notify('Allocating pending requests based on seniority...', 1500);
       const items=[...state.supervisor.items].filter(r=>r.status==='pending').sort((a,b)=> new Date(a.seniorityDate)-new Date(b.seniorityDate));
-      const allocated=new Set(), approved=[], rejected=[];
+      const allocated=new Set();
+      const updates = [];
+
       for (const req of items){
-        let conflict=false; const vds=req.vacationDates||[];
-        for (const week of vds){ const opt=Array.isArray(week)&&week[0]; if (!opt) continue; for (const d of getDatesInRange(opt.startDate,opt.endDate)){ if (allocated.has(d)){ conflict=true; break; } } if (conflict) break; }
-        if (conflict) rejected.push(req); else { approved.push(req); for (const week of vds){ const opt=Array.isArray(week)&&week[0]; if (!opt) continue; for (const d of getDatesInRange(opt.startDate,opt.endDate)) allocated.add(d); } }
+        // Ensure vacationDates is an array and not an empty one
+        if (!req.vacationDates || req.vacationDates.length === 0) {
+            updates.push({ id: req.id, patch: { status: 'rejected', rejectedAt: Date.now() } });
+            continue;
+        }
+
+        const updatedVacationDates = JSON.parse(JSON.stringify(req.vacationDates)); // Deep copy
+        let requestStatus = 'pending';
+
+        for (let i = 0; i < updatedVacationDates.length; i++) {
+          const week = updatedVacationDates[i];
+          const option = week[0];
+
+          if (option && option.startDate && option.endDate && option.status === 'pending') {
+            const dates = getDatesInRange(option.startDate, option.endDate);
+            let conflict = false;
+            for (const d of dates) {
+              if (allocated.has(d)) {
+                conflict = true;
+                break;
+              }
+            }
+
+            if (conflict) {
+              option.status = 'rejected';
+            } else {
+              option.status = 'approved';
+              for (const d of dates) {
+                allocated.add(d);
+              }
+            }
+          }
+        }
+
+        // Add defensive checks to ensure updatedVacationDates is an array before calling every()
+        const allApproved = updatedVacationDates && Array.isArray(updatedVacationDates) && updatedVacationDates.every(week => week[0]?.status === 'approved');
+        const allRejected = updatedVacationDates && Array.isArray(updatedVacationDates) && updatedVacationDates.every(week => week[0]?.status === 'rejected');
+        
+        if(allApproved) {
+            requestStatus = 'approved';
+        } else if (allRejected) {
+            requestStatus = 'rejected';
+        }
+
+        updates.push({
+            id: req.id,
+            patch: {
+                vacationDates: updatedVacationDates,
+                status: requestStatus,
+                updatedAt: Date.now()
+            }
+        });
       }
-      await Promise.all([...approved.map(r=>backendUpdate(r.id,{status:'approved',approvedAt:Date.now()})), ...rejected.map(r=>backendUpdate(r.id,{status:'rejected',rejectedAt:Date.now()}))]);
-      notify(`Allocated ${approved.length} request(s), rejected ${rejected.length}.`);
+
+      await Promise.all(updates.map(u => backendUpdate(u.id, u.patch)));
+      notify(`Allocated requests. Statuses have been updated.`);
     }
-    async function resetAll(){ notify('Resetting all requests...', 1200); const ups=state.supervisor.items.map(r=>backendUpdate(r.id,{status:'pending'})); await Promise.all(ups); notify(`Reset ${ups.length} request(s) to pending.`); }
+    
+    async function resetAll(){ 
+        if (!state.backend.ready) {
+            console.log('Backend not ready, waiting for initialization...');
+            await initBackend();
+        }
+        notify('Resetting all requests...', 1200); 
+        const ups=state.supervisor.items.map(r=>backendUpdate(r.id,{status:'pending'})); await Promise.all(ups); notify(`Reset ${ups.length} request(s) to pending.`); }
+
 
     // Backend (memory/Firestore)
     const memory = {
       _data: [], _id(){ return Math.random().toString(36).slice(2,10); },
       async list(){ return JSON.parse(JSON.stringify(this._data)); },
-      async add(doc){ const id=this._id(); this._data.push({...doc, id, vacationDates: JSON.parse(doc.vacationDates)}); return id; },
+      async add(doc){ const id=this._id(); this._data.push({...doc, id, vacationDates: doc.vacationDates}); return id; },
       async update(id, patch){ const i=this._data.findIndex(x=>x.id===id); if (i>=0) this._data[i] = {...this._data[i], ...patch}; },
       seed(){ if (this._data.length) return; const seed=[
-        {name:'Jane Doe', seniorityDate:'2018-05-15', vacationDates:[[{startDate:'2026-07-01',endDate:'2026-07-07'}],[{startDate:'2026-08-10',endDate:'2026-08-17'}]], yearsOfService:7, status:'pending'},
-        {name:'Robert Brown', seniorityDate:'2020-03-20', vacationDates:[[{startDate:'2026-09-05',endDate:'2026-09-12'}]], yearsOfService:5, status:'pending'},
-        {name:'Emily White', seniorityDate:'2012-01-10', vacationDates:[[{startDate:'2026-06-01',endDate:'2026-06-07'}],[{startDate:'2026-06-15',endDate:'2026-06-22'}],[{startDate:'2026-07-01',endDate:'2026-07-07'}]], yearsOfService:13, status:'approved'},
-        {name:'Michael Green', seniorityDate:'2024-02-28', vacationDates:[[{startDate:'2026-11-01',endDate:'2026-11-08'}]], yearsOfService:1, status:'pending'},
-        {name:'Olivia Jones', seniorityDate:'2019-09-01', vacationDates:[[{startDate:'2026-09-20',endDate:'2026-09-27'}],[{startDate:'2026-10-05',endDate:'2026-10-12'}]], yearsOfService:6, status:'rejected'},
+        {name:'Jane Doe', seniorityDate:'2018-05-15', vacationDates: [[{startDate:'2026-07-01',endDate:'2026-07-07', status:'pending'}],[{startDate:'2026-08-10',endDate:'2026-08-17', status:'pending'}]] , yearsOfService:7, status:'pending'},
+        {name:'Robert Brown', seniorityDate:'2020-03-20', vacationDates: [[{startDate:'2026-09-05',endDate:'2026-09-12', status:'pending'}]] , yearsOfService:5, status:'pending'},
+        {name:'Emily White', seniorityDate:'2012-01-10', vacationDates: [[{startDate:'2026-06-01',endDate:'2026-06-07', status:'approved'}],[{startDate:'2026-06-15',endDate:'2026-06-22', status:'approved'}],[{startDate:'2026-07-01',endDate:'2026-07-07', status:'approved'}]] , yearsOfService:13, status:'approved'},
+        {name:'Michael Green', seniorityDate:'2024-02-28', vacationDates: [[{startDate:'2026-11-01',endDate:'2026-11-08', status:'pending'}]] , yearsOfService:1, status:'pending'},
+        {name:'Olivia Jones', seniorityDate:'2019-09-01', vacationDates: [[{startDate:'2026-09-20',endDate:'2026-09-27', status:'rejected'}],[{startDate:'2026-10-05',endDate:'2026-10-12', status:'rejected'}]] , yearsOfService:6, status:'rejected'},
       ]; seed.forEach(s=> this._data.push({...s, id:this._id()})); }
     };
 
+
     async function initBackend(){
-      if (window._fb && window.firebaseConfig){
+      if (typeof __firebase_config !== 'undefined' && __firebase_config && Object.keys(JSON.parse(__firebase_config)).length > 0) {
         try {
-          const app = window._fb.initializeApp(window.firebaseConfig);
-          const auth = window._fb.getAuth(app);
-          state.backend.db = window._fb.getFirestore(app);
-          await new Promise(resolve=>{ window._fb.onAuthStateChanged(auth, async user=>{ if (user){ state.backend.userId=user.uid; state.backend.mode='firestore'; state.backend.ready=true; resolve(); } else { try { if (window.initialAuthToken) await window._fb.signInWithCustomToken(auth, window.initialAuthToken); else await window._fb.signInAnonymously(auth); } catch(e){ console.warn('Auth failed; memory mode.', e); state.backend.mode='memory'; state.backend.ready=true; resolve(); } } }); });
+          const firebaseConfig = JSON.parse(__firebase_config);
+          const { initializeApp, getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, getFirestore, collection, query, onSnapshot, doc, addDoc, updateDoc, serverTimestamp, getDocs } = window._fb;
+          if (!initializeApp || !getAuth || !getFirestore) {
+            console.error('Firebase functions are not available on window._fb.');
+            throw new Error('Firebase library not fully loaded.');
+          }
+          const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+          const app = initializeApp(firebaseConfig);
+          const auth = getAuth(app);
+          state.backend.db = getFirestore(app);
+          state.backend.appId = appId;
+          await new Promise(resolve=>{ onAuthStateChanged(auth, async user=>{ if (user){ state.backend.userId=user.uid; console.log("Firebase initialized. User ID: ", state.backend.userId); state.backend.mode='firestore'; state.backend.ready=true; resolve(); } else { try { if (typeof __initial_auth_token !== 'undefined') await signInWithCustomToken(auth, __initial_auth_token); else await signInAnonymously(auth); } catch(e){ console.warn('Auth failed; memory mode.', e); state.backend.mode='memory'; state.backend.ready=true; resolve(); } } }); });
           try { // seed if empty
-            const colRef = window._fb.collection(state.backend.db, `artifacts/${state.backend.appId}/public/data/vacation_requests`);
-            const snap = await window._fb.getDocs(colRef);
-            if (snap.empty){ memory.seed(); for (const s of memory._data){ await window._fb.addDoc(colRef, { name:s.name, seniorityDate:s.seniorityDate, vacationDates: JSON.stringify(s.vacationDates), yearsOfService:s.yearsOfService, status:s.status, submittedAt: window._fb.serverTimestamp(), userId: state.backend.userId }); } }
-          } catch(e){ /* ignore */ }
+            const colRef = collection(state.backend.db, `artifacts/${state.backend.appId}/public/data/vacation_requests`);
+            const snap = await getDocs(colRef);
+            if (snap.empty){ memory.seed(); for (const s of memory._data){ await addDoc(colRef, { name:s.name, seniorityDate:s.seniorityDate, vacationDates: JSON.stringify(s.vacationDates), yearsOfService:s.yearsOfService, status:s.status, submittedAt: serverTimestamp(), userId: state.backend.userId }); } }
+          } catch(e){ console.warn('Seeding failed; but continuing with firestore anyway...', e); }
           return;
         } catch(e){ console.warn('Firebase init error; using memory.', e); }
       }
       state.backend.mode='memory'; state.backend.ready=true; memory.seed();
     }
 
+
     async function backendList(){
+      console.log('backendList() called. Mode:', state.backend.mode);
       if (state.backend.mode==='firestore'){
         const colRef = window._fb.collection(state.backend.db, `artifacts/${state.backend.appId}/public/data/vacation_requests`);
         const q = window._fb.query(colRef); const out=[]; const snap = await window._fb.getDocs(q);
@@ -358,10 +656,21 @@
         return out;
       } else { return memory.list(); }
     }
-    async function backendAdd(doc){ if (state.backend.mode==='firestore'){ const colRef = window._fb.collection(state.backend.db, `artifacts/${state.backend.appId}/public/data/vacation_requests`); await window._fb.addDoc(colRef, doc); } else { await memory.add(doc); } await refreshSupervisor(); }
-    async function backendUpdate(id, patch){ if (state.backend.mode==='firestore'){ const ref = window._fb.doc(state.backend.db, `artifacts/${state.backend.appId}/public/data/vacation_requests`, id); await window._fb.updateDoc(ref, patch); } else { await memory.update(id, patch); } await refreshSupervisor(); }
+    async function backendAdd(doc){ 
+      console.log('backendAdd() called. Mode:', state.backend.mode);
+      if (state.backend.mode==='firestore'){ const colRef = window._fb.collection(state.backend.db, `artifacts/${state.backend.appId}/public/data/vacation_requests`); await window._fb.addDoc(colRef, { ...doc, vacationDates: JSON.stringify(doc.vacationDates) }); } else { await memory.add(doc); } await refreshSupervisor(); }
+    async function backendUpdate(id, patch){ 
+      console.log('backendUpdate() called. Mode:', state.backend.mode);
+      if (state.backend.mode==='firestore'){ 
+        if (patch.vacationDates) {
+          patch.vacationDates = JSON.stringify(patch.vacationDates);
+        }
+        const ref = window._fb.doc(state.backend.db, `artifacts/${state.backend.appId}/public/data/vacation_requests`, id); 
+        await window._fb.updateDoc(ref, patch); 
+      } else { await memory.update(id, patch); } await refreshSupervisor(); }
     async function refreshSupervisor(){ state.supervisor.items = await backendList(); paintSupervisor(); }
-    async function loadSupervisor(){ if (!state.backend.ready) return; await refreshSupervisor(); }
+    async function loadSupervisor(){ if (!state.backend.ready) { console.log('Backend not ready, waiting for initialization...'); await initBackend(); } await refreshSupervisor(); }
+
 
     // Nav events
     $('#go-employee').addEventListener('click', ()=> navigate('employee'));
@@ -369,6 +678,8 @@
     $('#back-from-employee').addEventListener('click', ()=> navigate('home'));
     $('#mobile-back').addEventListener('click', ()=> navigate('home'));
     $('#back-from-supervisor').addEventListener('click', ()=> navigate('home'));
+    $('#back-from-confirmation').addEventListener('click', ()=> navigate('home'));
+
 
     // Employee events
     $name.value = state.name; $seniority.value = state.seniorityDate;
@@ -380,13 +691,19 @@
     $('#btn-add-option').addEventListener('click', addOption);
     $('#btn-remove-option').addEventListener('click', removeOption);
 
+
     // Supervisor actions
     $('#btn-allocate').addEventListener('click', allocateAll);
     $('#btn-reset').addEventListener('click', resetAll);
 
+
     // Boot
-    (async function boot(){ await initBackend(); recomputeFromSeniority(); })();
+    (async function boot(){ 
+        window.now = new Date();
+        window.now.setUTCHours(0, 0, 0, 0);
+        await initBackend(); 
+        recomputeFromSeniority(); 
+    })();
   </script>
 </body>
 </html>
-

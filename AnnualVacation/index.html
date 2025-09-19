@@ -1,244 +1,151 @@
-import React, { useEffect, useMemo, useState } from "react";
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Vacation Planner (Vanilla JS • Phone Mock)</title>
+  <style>
+    :root {
+      --ink:#1f2937; --muted:#6b7280; --bg:#f3f4f6; --card:#ffffff;
+      --brand:#0F2133; --brand-d:#08121a; --ok:#16a34a; --warn:#ca8a04; --bad:#dc2626;
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui,-apple-system,Segoe UI,Roboto,Inter,Helvetica,Arial,sans-serif; color:var(--ink); background:var(--bg); }
+    .container { max-width: 1024px; margin: 24px auto; padding: 0 16px; }
+    .card { background:var(--card); border-radius:12px; box-shadow: 0 8px 24px rgba(0,0,0,.08); padding:24px; }
+    h1 { margin:0 0 16px; font-size:28px; }
+    h2 { margin:16px 0 8px; font-size:18px; }
+    .row { display:flex; gap:12px; align-items:center; }
+    .row.wrap { flex-wrap: wrap; }
+    .col { flex:1; min-width: 220px; }
+    label { display:block; font-size:14px; color:var(--muted); margin-bottom:6px; }
+    input[type="text"], input[type="date"] { width:100%; padding:10px 12px; border:1px solid #e5e7eb; border-radius:10px; outline:none; background:#fff; }
+    input:focus { border-color:#93c5fd; box-shadow:0 0 0 4px rgba(2,132,199,.15); }
+    .toolbar { display:flex; gap:8px; flex-wrap: wrap; }
+    button { appearance:none; border:0; border-radius:10px; padding:10px 14px; font-weight:600; cursor:pointer; background:var(--brand); color:white; }
+    button.secondary { background:#6b7280; }
+    button.ghost { background:transparent; color:#2563eb; padding:0; }
+    button.ok { background:var(--ok); }
+    button.bad { background:var(--bad); }
+    button.warn { background:#374151; }
+    button:disabled { opacity:.5; cursor:not-allowed; }
+    .pill { padding:4px 8px; border-radius:999px; font-size:12px; font-weight:700; display:inline-block; }
+    .PENDING { background:#fef3c7; color:#92400e; }
+    .APPROVED { background:#dcfce7; color:#166534; }
+    .REJECTED { background:#fee2e2; color:#991b1b; }
+    table { width:100%; border-collapse: collapse; }
+    th, td { padding:12px; text-align:left; border-bottom:1px solid #f1f5f9; vertical-align: top; }
+    thead th { font-size:12px; letter-spacing:.06em; color:#6b7280; text-transform:uppercase; }
+    .muted { color:var(--muted); }
+    .statbar { display:flex; justify-content:space-between; background:#f8fafc; padding:10px 12px; border-radius:10px; }
+    .chip-btn { width:28px; height:28px; border-radius:999px; display:grid; place-items:center; font-weight:800; }
+    .center { text-align:center; }
+    .hidden { display:none !important; }
 
-// ------- Helpers -------
-const fmtDateISOToMDY = (iso?: string) => {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(d.getUTCDate()).padStart(2, "0");
-  const yy = d.getUTCFullYear();
-  return `${mm}/${dd}/${yy}`;
-};
+    /* ------------------ PHONE MOCK ------------------ */
+    .phone-shell { display:flex; justify-content:center; }
+    .phone-body {
+      position:relative; width:390px; height:780px; background:#000; border-radius:36px; padding:12px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.35);
+    }
+    .phone-body:before { /* side button */
+      content:""; position:absolute; right:-4px; top:120px; width:3px; height:80px; background:#0e0e0e; border-radius:2px;
+    }
+    .phone-screen {
+      position:relative; width:100%; height:100%; border-radius:28px; background:#f3f4f6; overflow:hidden; display:flex; flex-direction:column;
+    }
+    .phone-notch { position:absolute; top:8px; left:50%; transform:translateX(-50%); width:180px; height:24px; background:#000; border-radius:0 0 18px 18px; z-index:2; }
+    .appbar { height:56px; background:var(--brand); color:white; display:flex; align-items:center; gap:10px; padding:0 14px; font-weight:700; position:relative; z-index:1; }
+    .appbar button { background:transparent; color:white; padding:6px 8px; border-radius:8px; }
+    .phone-content { flex:1; overflow-y:auto; padding:16px; }
 
-const weeksFromYears = (years: number) => {
-  if (years >= 35) return 6;
-  if (years >= 25) return 5;
-  if (years >= 10) return 4;
-  if (years >= 3) return 3;
-  if (years >= 1) return 2;
-  return 0;
-};
+    /* Make content look mobile-first inside the phone */
+    .phone-content .row { flex-direction:column; align-items:stretch; }
+    .phone-content .col { min-width: unset; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card" id="view-home">
+      <h1>Vacation Planner</h1>
+      <div class="toolbar">
+        <button id="go-employee">Employee Vacation Request</button>
+        <button id="go-supervisor" class="warn">Supervisor Dashboard</button>
+      </div>
+      <p class="muted" style="margin-top:12px">This demo wraps the Employee page inside a phone frame to preview the mobile UX.</p>
+    </div>
 
-const getDatesInRange = (a?: string, b?: string) => {
-  const out: string[] = [];
-  if (!a || !b) return out;
-  const start = new Date(a);
-  const end = new Date(b);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return out;
-  const d = new Date(start);
-  while (d <= end) {
-    out.push(d.toISOString().slice(0,10));
-    d.setDate(d.getDate()+1);
-  }
-  return out;
-};
-
-// ------- Types -------
-export type VacationOption = { startDate: string; endDate: string };
-export type VacationWeeks = VacationOption[][]; // week -> [option1, option2?]
-
-export type RequestRow = {
-  id: string;
-  name: string;
-  seniorityDate: string;
-  yearsOfService: number;
-  status: "pending" | "approved" | "rejected";
-  vacationDates?: VacationWeeks;
-};
-
-// ------- Memory backend -------
-const memory = {
-  _data: [] as RequestRow[],
-  _id() { return Math.random().toString(36).slice(2, 10); },
-  async list() { return JSON.parse(JSON.stringify(this._data)) as RequestRow[]; },
-  async add(doc: Omit<RequestRow, "id">) { const id = this._id(); this._data.unshift({ ...doc, id }); return id; },
-  async update(id: string, patch: Partial<RequestRow>) {
-    const i = this._data.findIndex(x => x.id === id);
-    if (i >= 0) this._data[i] = { ...this._data[i], ...patch } as RequestRow;
-  },
-  seed() {
-    if (this._data.length) return;
-    this._data.push({ id: this._id(), name: "Jane Doe", seniorityDate: "2018-05-15", yearsOfService: 7, status: "pending", vacationDates: [ [{startDate:"2026-07-01", endDate:"2026-07-07"}] ] });
-    this._data.push({ id: this._id(), name: "Robert Brown", seniorityDate: "2020-03-20", yearsOfService: 5, status: "pending", vacationDates: [ [{startDate:"2026-09-05", endDate:"2026-09-12"}] ] });
-    this._data.push({ id: this._id(), name: "Emily White", seniorityDate: "2012-01-10", yearsOfService: 13, status: "approved", vacationDates: [ [{startDate:"2026-06-01", endDate:"2026-06-07"}], [{startDate:"2026-06-15", endDate:"2026-06-22"}] ] });
-  }
-};
-
-// ------- UI bits -------
-const Btn: React.FC<React.PropsWithChildren<{ className?: string; variant?: "primary" | "secondary" | "ghost" | "danger" | "warn" }>> = ({ children, className = "", variant = "primary", ...props }) => (
-  <button className={`btn ${variant === "secondary" ? "secondary" : variant === "ghost" ? "ghost" : variant === "danger" ? "bad" : variant === "warn" ? "warn" : ""} ${className}`} {...props}>
-    {children}
-  </button>
-);
-
-const Icon = {
-  calendar: (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>
-  ),
-  clipboard: (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="8" y="3" width="8" height="4" rx="1"/><rect x="5" y="7" width="14" height="14" rx="2"/></svg>
-  ),
-  check: (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m20 6-11 11L4 12"/></svg>
-  ),
-  x: (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
-  )
-};
-
-// ------- Employee form (Phone Mock with Weeks/Options) -------
-const EmployeeForm: React.FC<{ onBack: () => void; onSubmit: (row: Omit<RequestRow, "id">) => void; }> = ({ onBack, onSubmit }) => {
-  const [name, setName] = useState("John Doe");
-  const [seniority, setSeniority] = useState("2015-01-01");
-  const yearsOfService = useMemo(() => {
-    if (!seniority) return 0;
-    const s = new Date(seniority), t = new Date();
-    return Math.max(0, Math.floor((t.getTime() - s.getTime()) / (1000*3600*24*365.25)));
-  }, [seniority]);
-
-  const weeks = useMemo(() => weeksFromYears(yearsOfService), [yearsOfService]);
-  const [currentWeek, setCurrentWeek] = useState(0);
-  const [weeksData, setWeeksData] = useState<VacationWeeks>([]);
-
-  // Keep weeksData length in sync with weeks earned
-  useEffect(() => {
-    setWeeksData(prev => {
-      const next = Array.from({ length: weeks }, (_, i) => prev[i] ?? [{ startDate: "", endDate: "" }]);
-      if (currentWeek >= weeks) setCurrentWeek(Math.max(0, weeks - 1));
-      return next;
-    });
-  }, [weeks]);
-
-  const weekArr = weeksData[currentWeek] || [{ startDate: "", endDate: "" }];
-
-  const updateOpt = (idx: number, field: keyof VacationOption, value: string) => {
-    setWeeksData(prev => {
-      const copy = prev.slice();
-      const arr = (copy[currentWeek] ? copy[currentWeek].slice() : [{ startDate: "", endDate: "" }]) as VacationOption[];
-      arr[idx] = { ...arr[idx], [field]: value } as VacationOption;
-      copy[currentWeek] = arr;
-      return copy;
-    });
-  };
-
-  const addOption = () => setWeeksData(prev => {
-    const copy = prev.slice();
-    const arr = (copy[currentWeek] ? copy[currentWeek].slice() : []) as VacationOption[];
-    if (arr.length < 2) arr.push({ startDate: "", endDate: "" });
-    copy[currentWeek] = arr;
-    return copy;
-  });
-
-  const removeOption = () => setWeeksData(prev => {
-    const copy = prev.slice();
-    const arr = (copy[currentWeek] ? copy[currentWeek].slice() : []) as VacationOption[];
-    if (arr.length > 1) arr.splice(1, 1);
-    copy[currentWeek] = arr.length ? arr : [{ startDate: "", endDate: "" }];
-    return copy;
-  });
-
-  const canPrev = currentWeek > 0;
-  const canNext = currentWeek < Math.max(0, weeks - 1);
-  const allWeeksFilled = weeksData.slice(0, weeks).every(week => (week?.[0]?.startDate && week?.[0]?.endDate));
-  const canSubmit = weeks > 0 && allWeeksFilled && !canNext && name.trim().length > 1 && !!seniority;
-
-  return (
-    <div className="card">
-      <div className="toolbar" style={{ marginBottom: 12 }}>
-        <button className="btn ghost" onClick={onBack}>&larr; Back to Home</button>
+    <!-- Employee in a Phone Mock -->
+    <div class="card hidden" id="view-employee">
+      <div class="toolbar" style="margin-bottom:12px">
+        <button class="ghost" id="back-from-employee">&larr; Back to Home</button>
       </div>
 
-      <div className="phone-shell">
-        <div className="phone-body">
-          <div className="phone-notch" />
-          <div className="phone-screen" role="region" aria-label="Mobile preview">
-            <div className="appbar">
-              <button className="appbar-btn" onClick={onBack} title="Back">&larr;</button>
+      <div class="phone-shell">
+        <div class="phone-body">
+          <div class="phone-notch"></div>
+          <div class="phone-screen" role="region" aria-label="Mobile preview">
+            <div class="appbar">
+              <button id="mobile-back" title="Back">&larr;</button>
               <div>Employee Vacation Request</div>
             </div>
-
-            <div className="phone-content">
-              <div className="row wrap">
-                <div className="col">
-                  <label>Name</label>
-                  <input type="text" value={name} onChange={e=>setName(e.target.value)} placeholder="Your name" />
+            <div class="phone-content">
+              <div class="row wrap">
+                <div class="col">
+                  <label for="emp-name">Name</label>
+                  <input id="emp-name" type="text" placeholder="Your name" />
                 </div>
-                <div className="col">
-                  <label>Seniority Date</label>
-                  <input type="date" value={seniority} onChange={e=>setSeniority(e.target.value)} />
-                </div>
-              </div>
-
-              <div className="statbar" style={{ marginTop: 12 }}>
-                <div>Years of Service: <strong>{yearsOfService}</strong></div>
-                <div>Weeks of Vacation: <strong>{weeks}</strong></div>
-              </div>
-
-              {/* Week navigator and options */}
-              <h2 style={{ marginTop: 16 }}>Request Weeks</h2>
-              <div className="toolbar" style={{ justifyContent: "space-between" }}>
-                <div className="muted">Week <strong>{weeks === 0 ? 0 : currentWeek + 1}</strong> of <strong>{weeks}</strong></div>
-                <div className="toolbar">
-                  <button className="chip-btn" onClick={addOption} disabled={weekArr.length >= 2} title="Add Option">+</button>
-                  <button className="chip-btn warn" onClick={removeOption} disabled={weekArr.length <= 1} title="Remove Option">−</button>
+                <div class="col">
+                  <label for="emp-seniority">Seniority Date</label>
+                  <input id="emp-seniority" type="date" />
                 </div>
               </div>
 
-              <div>
-                {weeks > 0 && weekArr.map((opt, idx) => (
-                  <div key={idx} className="option-card">
-                    <div className="muted" style={{ marginBottom: 6 }}>Option {idx + 1}</div>
-                    <div className="row wrap">
-                      <div className="col">
-                        <label>Start Date</label>
-                        <input type="date" min="2026-01-01" max="2026-12-31" value={opt.startDate || ""} onChange={(e) => updateOpt(idx, "startDate", e.target.value)} />
-                      </div>
-                      <div className="col">
-                        <label>End Date</label>
-                        <input type="date" min="2026-01-01" max="2026-12-31" value={opt.endDate || ""} onChange={(e) => updateOpt(idx, "endDate", e.target.value)} />
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              <div class="statbar" style="margin-top:12px">
+                <div>Years of Service: <strong id="stat-years">0</strong></div>
+                <div>Weeks of Vacation: <strong id="stat-weeks">0</strong></div>
               </div>
 
-              <div className="toolbar" style={{ justifyContent: "space-between", marginTop: 12 }}>
-                <button className="btn secondary" onClick={() => setCurrentWeek(Math.max(0, currentWeek - 1))} disabled={!canPrev}>Previous</button>
-                <div className="toolbar">
-                  {canNext && (
-                    <button className="btn" onClick={() => setCurrentWeek(Math.min(weeks - 1, currentWeek + 1))}>Next</button>
-                  )}
-                  {canSubmit && (
-                    <button className="btn ok" onClick={() => onSubmit({ name, seniorityDate: seniority, yearsOfService, status: "pending", vacationDates: weeksData })}>{Icon.check} Submit Request</button>
-                  )}
+              <h2>Request Weeks</h2>
+              <div class="row" style="justify-content:space-between; align-items:center">
+                <div class="muted">Week <strong id="wk-index">1</strong> of <strong id="wk-total">0</strong></div>
+                <div class="toolbar">
+                  <button id="btn-add-option" class="chip-btn" title="Add option">+</button>
+                  <button id="btn-remove-option" class="chip-btn warn" title="Remove option">&minus;</button>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-      </div>
+
+              <div id="options-wrap" style="margin-top:8px"></div>
+
+              <div class="toolbar" style="justify-content:space-between; margin-top:16px">
+                <button id="btn-prev" class="secondary">Previous</button>
+                <div class="toolbar">
+                  <button id="btn-next">Next</button>
+                  <button id="btn-submit" class="ok hidden">Submit Request</button>
+                </div>
+              </div>
+            </div> <!-- /phone-content -->
+          </div> <!-- /phone-screen -->
+        </div> <!-- /phone-body -->
+      </div> <!-- /phone-shell -->
     </div>
-  );
-};
 
-// ------- Supervisor table -------
-const SupervisorTable: React.FC<{ items: RequestRow[]; onAct: (id: string, action: "approve" | "reject") => void; onBack: () => void; onAllocateAll: () => void; onResetAll: () => void; }> = ({ items, onAct, onBack, onAllocateAll, onResetAll }) => {
-  const sorted = useMemo(() => [...items].sort((a,b)=> new Date(a.seniorityDate).getTime() - new Date(b.seniorityDate).getTime()), [items]);
-  return (
-    <div className="card">
-      <div className="toolbar" style={{ marginBottom: 12 }}>
-        <button className="btn ghost" onClick={onBack}>&larr; Back to Home</button>
+    <!-- Supervisor -->
+    <div class="card hidden" id="view-supervisor">
+      <div class="toolbar" style="margin-bottom:12px">
+        <button class="ghost" id="back-from-supervisor">&larr; Back to Home</button>
       </div>
-      <h2 style={{ margin: "0 0 8px" }}>Supervisor Dashboard</h2>
-      <div className="toolbar" style={{ justifyContent: "space-between", marginBottom: 8 }}>
-        <div className="toolbar">
-          <button className="btn" onClick={onAllocateAll}>Auto Allocate</button>
-          <button className="btn secondary" onClick={onResetAll}>Reset Leaves</button>
+      <h1>Supervisor Dashboard</h1>
+
+      <div class="toolbar" style="justify-content:space-between; margin-bottom:8px">
+        <div class="toolbar">
+          <button id="btn-allocate">Allocate Vacations</button>
+          <button id="btn-reset" class="secondary">Reset All Requests</button>
         </div>
-        <span className="muted">Sorted by seniority (oldest first)</span>
+        <span class="muted">Sorted by seniority (oldest first)</span>
       </div>
-      <div className="card" style={{ padding: 0 }}>
+
+      <div class="card" style="padding:0">
         <table>
           <thead>
             <tr>
@@ -250,201 +157,236 @@ const SupervisorTable: React.FC<{ items: RequestRow[]; onAct: (id: string, actio
               <th></th>
             </tr>
           </thead>
-          <tbody>
-            {sorted.map(req => (
-              <tr key={req.id}>
-                <td>{req.name}</td>
-                <td className="muted">{fmtDateISOToMDY(req.seniorityDate)}</td>
-                <td className="muted">{req.yearsOfService}</td>
-                <td>
-                  {(req.vacationDates || []).map((week, i) => (
-                    <div key={i} style={{ marginBottom: 6 }}>
-                      <strong>Week {i + 1}:</strong>
-                      <div>
-                        {(week || []).map((o, j) => (
-                          <div key={j} className="muted" style={{ fontSize: 12 }}>
-                            Option {j + 1}: {fmtDateISOToMDY(o.startDate)} to {fmtDateISOToMDY(o.endDate)}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </td>
-                <td>
-                  <span className="pill" style={{ background: req.status === 'pending' ? '#fef3c7' : req.status === 'approved' ? '#dcfce7' : '#fee2e2', color: req.status === 'pending' ? '#92400e' : req.status === 'approved' ? '#166534' : '#991b1b' }}>
-                    {req.status.toUpperCase()}
-                  </span>
-                </td>
-                <td>
-                  {req.status === "pending" && (
-                    <div className="toolbar">
-                      <button className="btn" onClick={() => onAct(req.id,"approve")}>{Icon.check} Approve</button>
-                      <button className="btn bad" onClick={() => onAct(req.id,"reject")}>{Icon.x} Reject</button>
-                    </div>
-                  )}
-                </td>
-              </tr>
-            ))}
+          <tbody id="requests-tbody">
+            <tr><td colspan="6" class="center muted">Loading…</td></tr>
           </tbody>
         </table>
       </div>
     </div>
-  );
-};
+  </div>
 
-// ------- App -------
-export default function App() {
-  const styles = `
-    :root { --ink:#1f2937; --muted:#6b7280; --bg:#f3f4f6; --card:#ffffff; --brand:#0F2133; --ok:#16a34a; --warn:#374151; --bad:#dc2626; }
-    * { box-sizing: border-box; }
-    body, .app-root { margin:0; font-family: system-ui,-apple-system,Segoe UI,Roboto,Inter,Helvetica,Arial,sans-serif; color:var(--ink); background:var(--bg); }
-    .container { max-width: 1024px; margin: 24px auto; padding: 0 16px; }
-    .card { background:var(--card); border-radius:12px; box-shadow: 0 8px 24px rgba(0,0,0,.08); padding:24px; }
-    h1 { margin:0 0 16px; font-size:28px; }
-    .row { display:flex; gap:12px; align-items:center; }
-    .row.wrap { flex-wrap: wrap; }
-    .col { flex:1; min-width: 220px; }
-    label { display:block; font-size:14px; color:var(--muted); margin-bottom:6px; }
-    input[type="text"], input[type="date"] { width:100%; padding:10px 12px; border:1px solid #e5e7eb; border-radius:10px; outline:none; background:#fff; }
-    input:focus { border-color:#93c5fd; box-shadow:0 0 0 4px rgba(2,132,199,.15); }
-    .toolbar { display:flex; gap:8px; flex-wrap: wrap; align-items:center; }
-    .btn { appearance:none; border:0; border-radius:10px; padding:10px 14px; font-weight:600; cursor:pointer; background:var(--brand); color:white; display:inline-flex; gap:8px; align-items:center; }
-    .btn.secondary { background:#6b7280; }
-    .btn.ghost { background:transparent; color:#2563eb; padding:0; }
-    .btn.ok { background:var(--ok); }
-    .btn.bad { background:var(--bad); }
-    .btn.warn { background:var(--warn); }
-    .pill { padding:4px 8px; border-radius:999px; font-size:12px; font-weight:700; display:inline-block; }
-    table { width:100%; border-collapse: collapse; }
-    th, td { padding:12px; text-align:left; border-bottom:1px solid #f1f5f9; vertical-align: top; }
-    thead th { font-size:12px; letter-spacing:.06em; color:#6b7280; text-transform:uppercase; }
-    .muted { color:var(--muted); }
-
-    /* Phone mock styles */
-    .phone-shell { display:flex; justify-content:center; }
-    .phone-body { position:relative; width:390px; height:780px; background:#000; border-radius:36px; padding:12px; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
-    .phone-body:before { content:""; position:absolute; right:-4px; top:120px; width:3px; height:80px; background:#0e0e0e; border-radius:2px; }
-    .phone-screen { position:relative; width:100%; height:100%; border-radius:28px; background:#f3f4f6; overflow:hidden; display:flex; flex-direction:column; }
-    .phone-notch { position:absolute; top:8px; left:50%; transform:translateX(-50%); width:180px; height:24px; background:#000; border-radius:0 0 18px 18px; z-index:2; }
-    .appbar { height:56px; background:var(--brand); color:white; display:flex; align-items:center; gap:10px; padding:0 14px; font-weight:700; position:relative; z-index:1; }
-    .appbar-btn { background:transparent; border:0; color:white; padding:6px 8px; border-radius:8px; cursor:pointer; }
-    .phone-content { flex:1; overflow-y:auto; padding:16px; }
-    .phone-content .row { flex-direction:column; align-items:stretch; }
-    .phone-content .col { min-width: unset; }
-    .statbar { display:flex; justify-content:space-between; background:#f8fafc; padding:10px 12px; border-radius:10px; }
-    .chip-btn { width:28px; height:28px; border-radius:999px; display:grid; place-items:center; font-weight:800; background:#fff; border:1px solid #e5e7eb; color:#111827; }
-    .chip-btn.warn { background:#374151; color:#fff; border-color:#374151; }
-    .option-card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:12px; margin:8px 0; }
-  `;
-
-  const [route, setRoute] = useState<"home" | "employee" | "supervisor">("home");
-  const [items, setItems] = useState<RequestRow[]>([]);
-  const [notice, setNotice] = useState<string | null>(null);
-
-  useEffect(() => { memory.seed(); memory.list().then(setItems); }, []);
-
-  const onSubmit = async (row: Omit<RequestRow, "id">) => {
-    await memory.add(row);
-    setItems(await memory.list());
-    setNotice("Request submitted");
-    setRoute("supervisor");
-  };
-
-  const act = async (id: string, action: "approve" | "reject") => {
-    await memory.update(id, { status: action === "approve" ? "approved" : "rejected" });
-    setItems(await memory.list());
-    setNotice(action === "approve" ? "Vacation approved successfully!" : "Vacation rejected.");
-  };
-
-  const allocateAll = async () => {
-    const list = await memory.list();
-    // Seed allocated calendar with already approved requests
-    const allocated = new Set<string>();
-    for (const r of list) {
-      if (r.status === "approved") {
-        for (const week of (r.vacationDates || [])) {
-          const opt = Array.isArray(week) ? week[0] : undefined;
-          if (!opt) continue;
-          for (const d of getDatesInRange(opt.startDate, opt.endDate)) allocated.add(d);
-        }
-      }
-    }
-
-    const pending = list.filter(r => r.status === "pending").sort((a,b)=> new Date(a.seniorityDate).getTime() - new Date(b.seniorityDate).getTime());
-    let approvedCount = 0, rejectedCount = 0;
-
-    for (const req of pending) {
-      const weeks = req.vacationDates || [];
-      let ok = true;
-      const reserve: string[] = [];
-      for (const week of weeks) {
-        const options = Array.isArray(week) ? week : [];
-        let chosen: string[] | null = null;
-        for (const opt of options) {
-          const dates = getDatesInRange(opt?.startDate, opt?.endDate);
-          if (dates.length === 0) continue;
-          if (!dates.some(d => allocated.has(d) || reserve.includes(d))) {
-            chosen = dates;
-            break;
-          }
-        }
-        if (chosen) {
-          reserve.push(...chosen);
-        } else {
-          ok = false;
-          break;
-        }
-      }
-      if (ok) {
-        reserve.forEach(d => allocated.add(d));
-        await memory.update(req.id, { status: "approved" });
-        approvedCount++;
-      } else {
-        await memory.update(req.id, { status: "rejected" });
-        rejectedCount++;
-      }
-    }
-
-    setItems(await memory.list());
-    setNotice(`Auto allocated: ${approvedCount} approved, ${rejectedCount} rejected.`);
-  };
-
-  const resetAll = async () => {
-    const list = await memory.list();
-    await Promise.all(list.map(r => memory.update(r.id, { status: "pending" })));
-    setItems(await memory.list());
-    setNotice(`Reset ${list.length} request(s) to pending.`);
-  };
-
-  return (
-    <div className="app-root">
-      <style>{styles}</style>
-      <div className="container">
-        {route === "home" && (
-          <div className="card">
-            <h1>Vacation Planner</h1>
-            <div className="toolbar">
-              <Btn onClick={() => setRoute("employee")}>{Icon.calendar} Employee Vacation Request</Btn>
-              <Btn variant="warn" onClick={() => setRoute("supervisor")}>{Icon.clipboard} Supervisor Dashboard</Btn>
-            </div>
-          </div>
-        )}
-
-        {route === "employee" && (
-          <EmployeeForm onBack={() => setRoute("home")} onSubmit={onSubmit} />
-        )}
-
-        {route === "supervisor" && (
-          <SupervisorTable items={items} onAct={act} onBack={() => setRoute("home")} onAllocateAll={allocateAll} onResetAll={resetAll} />
-        )}
-
-        {notice && (
-          <div className="card" style={{ position: "fixed", left: 16, bottom: 16 }}>
-            <div>{notice}</div>
-            <Btn variant="ghost" onClick={() => setNotice(null)}>Close</Btn>
-          </div>
-        )}
-      </div>
+  <!-- Message Modal -->
+  <div class="notice hidden" id="notice" aria-live="polite">
+    <div class="panel card" style="max-width:420px; margin:0 16px;">
+      <div id="notice-text" style="margin-bottom:12px">Hello</div>
+      <button id="notice-close">Close</button>
     </div>
-  );
-}
+  </div>
+
+  <!-- OPTIONAL Firebase (works if you already expose window.firebaseConfig, window.appId, window.initialAuthToken) -->
+  <script type="module">
+    const hasFirebaseConfig = typeof window.firebaseConfig !== 'undefined' && window.firebaseConfig && Object.keys(window.firebaseConfig).length > 0;
+    if (hasFirebaseConfig) {
+      const { initializeApp } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
+      const { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
+      const { getFirestore, collection, query, onSnapshot, doc, addDoc, updateDoc, serverTimestamp, getDocs } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+      window._fb = { initializeApp, getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, getFirestore, collection, query, onSnapshot, doc, addDoc, updateDoc, serverTimestamp, getDocs };
+    }
+  </script>
+
+  <!-- Main App -->
+  <script>
+    const state = {
+      name: 'John Doe',
+      seniorityDate: '2015-01-01',
+      years: 0,
+      weeks: 0,
+      currentWeekIndex: 0,
+      vacationDates: [],
+      backend: { mode: 'memory', userId: 'local-user', ready: false, db: null, appId: window.appId || 'default-app-id' },
+      supervisor: { items: [] }
+    };
+
+    const $ = sel => document.querySelector(sel);
+    const show = el => el.classList.remove('hidden');
+    const hide = el => el.classList.add('hidden');
+
+    const views = { home: $('#view-home'), employee: $('#view-employee'), supervisor: $('#view-supervisor') };
+    function navigate(to){ Object.values(views).forEach(hide); show(views[to]); if (to==='supervisor') loadSupervisor(); }
+
+    function notify(msg, ms=3000){ $('#notice-text').textContent = msg; show($('#notice')); clearTimeout(notify._t); notify._t = setTimeout(()=>hide($('#notice')), ms); }
+    $('#notice-close').addEventListener('click', ()=> hide($('#notice')));
+
+    // Employee refs
+    const $name = $('#emp-name');
+    const $seniority = $('#emp-seniority');
+    const $years = $('#stat-years');
+    const $weeks = $('#stat-weeks');
+    const $wkIndex = $('#wk-index');
+    const $wkTotal = $('#wk-total');
+    const $optionsWrap = $('#options-wrap');
+    const $btnPrev = $('#btn-prev');
+    const $btnNext = $('#btn-next');
+    const $btnSubmit = $('#btn-submit');
+    const $btnAddOpt = $('#btn-add-option');
+    const $btnRemOpt = $('#btn-remove-option');
+
+    function fmtDateISOToMDY(iso){ if (!iso) return ''; const d = new Date(iso); if (Number.isNaN(d)) return ''; const mm=String(d.getUTCMonth()+1).padStart(2,'0'); const dd=String(d.getUTCDate()).padStart(2,'0'); const yy=d.getUTCFullYear(); return `${mm}/${dd}/${yy}`; }
+
+    function recomputeFromSeniority(){
+      const sd = $seniority.value || ''; if (!sd){ state.years=0; state.weeks=0; paintEmployeeStats(); return; }
+      const start = new Date(sd); const today = new Date();
+      state.years = Math.max(0, Math.floor((today - start)/(1000*3600*24*365.25)));
+      let w=0; if (state.years>=35) w=6; else if (state.years>=25) w=5; else if (state.years>=10) w=4; else if (state.years>=3) w=3; else if (state.years>=1) w=2;
+      state.weeks = w;
+      const cur = state.vacationDates||[]; state.vacationDates = Array.from({length:w}, (_,i)=> cur[i]?cur[i]:[{startDate:'',endDate:''}]);
+      if (state.currentWeekIndex>=w) state.currentWeekIndex = Math.max(0, w-1);
+      paintEmployeeStats(); paintWeek();
+    }
+
+    function paintEmployeeStats(){
+      $years.textContent = state.years; $weeks.textContent = state.weeks; $wkIndex.textContent = (state.weeks===0?0:state.currentWeekIndex+1); $wkTotal.textContent = state.weeks;
+      $btnPrev.disabled = (state.currentWeekIndex===0);
+      hide($btnSubmit); hide($btnNext);
+      if (state.weeks>0){ if (state.currentWeekIndex < state.weeks-1) show($btnNext); else show($btnSubmit); }
+    }
+
+    function paintWeek(){
+      $optionsWrap.innerHTML = ''; if (state.weeks===0) return;
+      const arr = state.vacationDates[state.currentWeekIndex] || [{startDate:'',endDate:''}];
+      arr.forEach((opt, idx)=>{
+        const wrap = document.createElement('div'); wrap.className='card'; wrap.style.padding='12px'; wrap.style.margin='8px 0';
+        const label = document.createElement('div'); label.className='muted'; label.textContent=`Option ${idx+1}`; wrap.appendChild(label);
+        const row = document.createElement('div'); row.className='row wrap';
+        const col1 = document.createElement('div'); col1.className='col';
+        const col2 = document.createElement('div'); col2.className='col';
+        const l1 = document.createElement('label'); l1.textContent='Start Date';
+        const i1 = document.createElement('input'); i1.type='date'; i1.min='2026-01-01'; i1.max='2026-12-31'; i1.value=opt.startDate||''; i1.addEventListener('change', e=>{ state.vacationDates[state.currentWeekIndex][idx].startDate = e.target.value; });
+        const l2 = document.createElement('label'); l2.textContent='End Date';
+        const i2 = document.createElement('input'); i2.type='date'; i2.min='2026-01-01'; i2.max='2026-12-31'; i2.value=opt.endDate||''; i2.addEventListener('change', e=>{ state.vacationDates[state.currentWeekIndex][idx].endDate = e.target.value; });
+        col1.append(l1,i1); col2.append(l2,i2); row.append(col1,col2); wrap.appendChild(row); $optionsWrap.appendChild(wrap);
+      });
+      const len = (state.vacationDates[state.currentWeekIndex]?.length||0);
+      $btnAddOpt.disabled = !(len < 2); $btnRemOpt.disabled = !(len > 1);
+    }
+
+    function addOption(){ const arr = state.vacationDates[state.currentWeekIndex]; if (arr.length<2){ arr.push({startDate:'',endDate:''}); paintWeek(); } }
+    function removeOption(){ const arr = state.vacationDates[state.currentWeekIndex]; if (arr.length>1){ arr.splice(1,1); paintWeek(); } }
+    function allDatesFilled(){ return state.vacationDates.every(week => week.every(o=>o.startDate && o.endDate)); }
+
+    async function submitRequest(){
+      if (!$name.value || !$seniority.value) return notify("Please fill in your name and seniority date.");
+      if (state.weeks===0) return notify("You currently have 0 vacation weeks.");
+      if (!allDatesFilled()) return notify("Please fill in all requested vacation dates.");
+      const payload = { name:$name.value, seniorityDate:$seniority.value, vacationDates: JSON.stringify(state.vacationDates), yearsOfService: state.years, status:'pending', userId: state.backend.userId, submittedAt: Date.now() };
+      try { await backendAdd(payload); $name.value='John Doe'; $seniority.value='2015-01-01'; state.currentWeekIndex=0; recomputeFromSeniority(); notify("Vacation request submitted successfully!"); } catch(e){ console.error(e); notify("Failed to submit request. Please try again."); }
+    }
+
+    // Supervisor
+    const $tbody = $('#requests-tbody');
+    function paintSupervisor(){
+      const items=[...state.supervisor.items].sort((a,b)=> new Date(a.seniorityDate)-new Date(b.seniorityDate));
+      if (!items.length){ $tbody.innerHTML = `<tr><td colspan="6" class="center muted">No vacation requests at this time.</td></tr>`; return; }
+      $tbody.innerHTML='';
+      items.forEach(req=>{
+        const vdates = Array.isArray(req.vacationDates)?req.vacationDates:[];
+        const datesHTML = vdates.map((week,i)=>{
+          const lines = (Array.isArray(week)?week:[]).map((o,j)=>`<div class="muted" style="font-size:12px">Option ${j+1}: ${fmtDateISOToMDY(o.startDate)} to ${fmtDateISOToMDY(o.endDate)}</div>`).join('');
+          return `<div style="margin-bottom:6px"><strong>Week ${i+1}:</strong><div>${lines||'<span class=\"muted\">No dates</span>'}</div></div>`;
+        }).join('');
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${req.name}</td>
+          <td class="muted">${fmtDateISOToMDY(req.seniorityDate)}</td>
+          <td class="muted">${req.yearsOfService ?? ''}</td>
+          <td>${datesHTML || '<span class="muted">—</span>'}</td>
+          <td><span class="pill ${(req.status||'pending').toUpperCase()}">${(req.status||'pending').toUpperCase()}</span></td>
+          <td>${req.status==='pending'?`<div class="toolbar"><button data-act="approve" data-id="${req.id}">Approve</button><button class="bad" data-act="reject" data-id="${req.id}">Reject</button></div>`:''}</td>`;
+        $tbody.appendChild(tr);
+      });
+    }
+
+    $tbody.addEventListener('click', async e=>{
+      const btn = e.target.closest('button[data-act]'); if (!btn) return; const id=btn.getAttribute('data-id'); const act=btn.getAttribute('data-act');
+      try{ if (act==='approve'){ await backendUpdate(id,{status:'approved',approvedAt:Date.now()}); notify('Vacation approved successfully!'); } else if (act==='reject'){ await backendUpdate(id,{status:'rejected',rejectedAt:Date.now()}); notify('Vacation rejected.'); } }
+      catch(err){ console.error(err); notify('Failed to update request.'); }
+    });
+
+    function getDatesInRange(a,b){ const out=[]; const d=new Date(a); const stop=new Date(b); if (Number.isNaN(d)||Number.isNaN(stop)) return out; while(d<=stop){ out.push(d.toISOString().slice(0,10)); d.setDate(d.getDate()+1);} return out; }
+    async function allocateAll(){
+      notify('Allocating pending requests based on seniority...', 1500);
+      const items=[...state.supervisor.items].filter(r=>r.status==='pending').sort((a,b)=> new Date(a.seniorityDate)-new Date(b.seniorityDate));
+      const allocated=new Set(), approved=[], rejected=[];
+      for (const req of items){
+        let conflict=false; const vds=req.vacationDates||[];
+        for (const week of vds){ const opt=Array.isArray(week)&&week[0]; if (!opt) continue; for (const d of getDatesInRange(opt.startDate,opt.endDate)){ if (allocated.has(d)){ conflict=true; break; } } if (conflict) break; }
+        if (conflict) rejected.push(req); else { approved.push(req); for (const week of vds){ const opt=Array.isArray(week)&&week[0]; if (!opt) continue; for (const d of getDatesInRange(opt.startDate,opt.endDate)) allocated.add(d); } }
+      }
+      await Promise.all([...approved.map(r=>backendUpdate(r.id,{status:'approved',approvedAt:Date.now()})), ...rejected.map(r=>backendUpdate(r.id,{status:'rejected',rejectedAt:Date.now()}))]);
+      notify(`Allocated ${approved.length} request(s), rejected ${rejected.length}.`);
+    }
+    async function resetAll(){ notify('Resetting all requests...', 1200); const ups=state.supervisor.items.map(r=>backendUpdate(r.id,{status:'pending'})); await Promise.all(ups); notify(`Reset ${ups.length} request(s) to pending.`); }
+
+    // Backend (memory/Firestore)
+    const memory = {
+      _data: [], _id(){ return Math.random().toString(36).slice(2,10); },
+      async list(){ return JSON.parse(JSON.stringify(this._data)); },
+      async add(doc){ const id=this._id(); this._data.push({...doc, id, vacationDates: JSON.parse(doc.vacationDates)}); return id; },
+      async update(id, patch){ const i=this._data.findIndex(x=>x.id===id); if (i>=0) this._data[i] = {...this._data[i], ...patch}; },
+      seed(){ if (this._data.length) return; const seed=[
+        {name:'Jane Doe', seniorityDate:'2018-05-15', vacationDates:[[{startDate:'2026-07-01',endDate:'2026-07-07'}],[{startDate:'2026-08-10',endDate:'2026-08-17'}]], yearsOfService:7, status:'pending'},
+        {name:'Robert Brown', seniorityDate:'2020-03-20', vacationDates:[[{startDate:'2026-09-05',endDate:'2026-09-12'}]], yearsOfService:5, status:'pending'},
+        {name:'Emily White', seniorityDate:'2012-01-10', vacationDates:[[{startDate:'2026-06-01',endDate:'2026-06-07'}],[{startDate:'2026-06-15',endDate:'2026-06-22'}],[{startDate:'2026-07-01',endDate:'2026-07-07'}]], yearsOfService:13, status:'approved'},
+        {name:'Michael Green', seniorityDate:'2024-02-28', vacationDates:[[{startDate:'2026-11-01',endDate:'2026-11-08'}]], yearsOfService:1, status:'pending'},
+        {name:'Olivia Jones', seniorityDate:'2019-09-01', vacationDates:[[{startDate:'2026-09-20',endDate:'2026-09-27'}],[{startDate:'2026-10-05',endDate:'2026-10-12'}]], yearsOfService:6, status:'rejected'},
+      ]; seed.forEach(s=> this._data.push({...s, id:this._id()})); }
+    };
+
+    async function initBackend(){
+      if (window._fb && window.firebaseConfig){
+        try {
+          const app = window._fb.initializeApp(window.firebaseConfig);
+          const auth = window._fb.getAuth(app);
+          state.backend.db = window._fb.getFirestore(app);
+          await new Promise(resolve=>{ window._fb.onAuthStateChanged(auth, async user=>{ if (user){ state.backend.userId=user.uid; state.backend.mode='firestore'; state.backend.ready=true; resolve(); } else { try { if (window.initialAuthToken) await window._fb.signInWithCustomToken(auth, window.initialAuthToken); else await window._fb.signInAnonymously(auth); } catch(e){ console.warn('Auth failed; memory mode.', e); state.backend.mode='memory'; state.backend.ready=true; resolve(); } } }); });
+          try { // seed if empty
+            const colRef = window._fb.collection(state.backend.db, `artifacts/${state.backend.appId}/public/data/vacation_requests`);
+            const snap = await window._fb.getDocs(colRef);
+            if (snap.empty){ memory.seed(); for (const s of memory._data){ await window._fb.addDoc(colRef, { name:s.name, seniorityDate:s.seniorityDate, vacationDates: JSON.stringify(s.vacationDates), yearsOfService:s.yearsOfService, status:s.status, submittedAt: window._fb.serverTimestamp(), userId: state.backend.userId }); } }
+          } catch(e){ /* ignore */ }
+          return;
+        } catch(e){ console.warn('Firebase init error; using memory.', e); }
+      }
+      state.backend.mode='memory'; state.backend.ready=true; memory.seed();
+    }
+
+    async function backendList(){
+      if (state.backend.mode==='firestore'){
+        const colRef = window._fb.collection(state.backend.db, `artifacts/${state.backend.appId}/public/data/vacation_requests`);
+        const q = window._fb.query(colRef); const out=[]; const snap = await window._fb.getDocs(q);
+        snap.forEach(doc=>{ const d=doc.data(); out.push({ id:doc.id, ...d, vacationDates: d.vacationDates?JSON.parse(d.vacationDates):[] }); });
+        return out;
+      } else { return memory.list(); }
+    }
+    async function backendAdd(doc){ if (state.backend.mode==='firestore'){ const colRef = window._fb.collection(state.backend.db, `artifacts/${state.backend.appId}/public/data/vacation_requests`); await window._fb.addDoc(colRef, doc); } else { await memory.add(doc); } await refreshSupervisor(); }
+    async function backendUpdate(id, patch){ if (state.backend.mode==='firestore'){ const ref = window._fb.doc(state.backend.db, `artifacts/${state.backend.appId}/public/data/vacation_requests`, id); await window._fb.updateDoc(ref, patch); } else { await memory.update(id, patch); } await refreshSupervisor(); }
+    async function refreshSupervisor(){ state.supervisor.items = await backendList(); paintSupervisor(); }
+    async function loadSupervisor(){ if (!state.backend.ready) return; await refreshSupervisor(); }
+
+    // Nav events
+    $('#go-employee').addEventListener('click', ()=> navigate('employee'));
+    $('#go-supervisor').addEventListener('click', ()=> navigate('supervisor'));
+    $('#back-from-employee').addEventListener('click', ()=> navigate('home'));
+    $('#mobile-back').addEventListener('click', ()=> navigate('home'));
+    $('#back-from-supervisor').addEventListener('click', ()=> navigate('home'));
+
+    // Employee events
+    $name.value = state.name; $seniority.value = state.seniorityDate;
+    $name.addEventListener('input', e=> state.name = e.target.value);
+    $seniority.addEventListener('change', recomputeFromSeniority);
+    $('#btn-prev').addEventListener('click', ()=>{ if (state.currentWeekIndex>0){ state.currentWeekIndex--; paintEmployeeStats(); paintWeek(); } });
+    $('#btn-next').addEventListener('click', ()=>{ if (state.currentWeekIndex < state.weeks-1){ state.currentWeekIndex++; paintEmployeeStats(); paintWeek(); } });
+    $('#btn-submit').addEventListener('click', submitRequest);
+    $('#btn-add-option').addEventListener('click', addOption);
+    $('#btn-remove-option').addEventListener('click', removeOption);
+
+    // Supervisor actions
+    $('#btn-allocate').addEventListener('click', allocateAll);
+    $('#btn-reset').addEventListener('click', resetAll);
+
+    // Boot
+    (async function boot(){ await initBackend(); recomputeFromSeniority(); })();
+  </script>
+</body>
+</html>
+
